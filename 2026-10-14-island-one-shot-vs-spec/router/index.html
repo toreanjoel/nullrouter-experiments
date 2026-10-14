@@ -63,7 +63,7 @@ import * as THREE from 'three';
 // ═════════════════════════════════════════════════════════════════════════════
 
 const CONFIG = {
-  defaultSeed: 'squall',
+  defaultSeed: 'island',
 
   // Frame budget. The quality governor lowers quality whenever frames run slower than this.
   targetFps: 60,
@@ -2294,7 +2294,7 @@ const Atmosphere = {
     this.front = {
       kind, pos,                                                        // km upwind of the island
       dir: new THREE.Vector2(Math.sin(a), -Math.cos(a)),                // toward where it comes from
-      width: r.range(...A.frontWidth) * (kind === 'storm' ? 0.8 : 1),   // squall lines are narrower
+      width: r.range(...A.frontWidth) * (kind === 'storm' ? 0.8 : 1),   // storm lines are narrower
       speed: r.range(...A.frontSpeed) * 24 / CONFIG.clock.dayLength,    // km per simulated second
       intensity: pos >= A.frontStart ? A.frontKinds[kind] : 0,
       target: A.frontKinds[kind], hold: false, leaving: false,
@@ -2394,7 +2394,7 @@ const Atmosphere = {
     const a = THREE.MathUtils.degToRad(this.windFrom), U = this.windSpeed;
     this.dir.set(-Math.sin(a), Math.cos(a));
     // A storm's cold downdraught: rain-cooled air pouring out along the ground ahead of
-    // its core, a squall of cold gusty wind as the leading edge passes.
+    // its core, a burst of cold gusty wind as the leading edge passes.
     this.outflow = f && f.kind === 'storm' ? f.intensity * Math.exp(-(((f.pos - 0.55 * f.width) / (0.3 * f.width)) ** 2)) : 0;
     this.seaLevelTemp = this.temp + this.landDT - A.downdraught[0] * this.outflow;
     this.seaAirTemp = this.temp + 0.15 * this.landDT;          // the sea barely warms or cools in a day
@@ -6083,7 +6083,7 @@ const UI = {
   },
 
   nextSeed() {
-    const words = ['squall', 'gale', 'lull', 'brine', 'cairn', 'fjell', 'mistral', 'haar', 'scree', 'tarn', 'sirocco', 'shoal', 'ness', 'skerry', 'zephyr', 'tor'];
+    const words = ['swell', 'gale', 'lull', 'brine', 'cairn', 'fjell', 'mistral', 'haar', 'scree', 'tarn', 'sirocco', 'shoal', 'ness', 'skerry', 'zephyr', 'tor'];
     return `${this.seeds.pick(words)}-${this.seeds.int(10, 999)}`;
   },
 

@@ -178,7 +178,7 @@ class RNG {
   gauss() { let u = 0, v = 0; while (u === 0) u = this.next(); v = this.next(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(6.283185 * v); }
   fork(label) { return new RNG(hashString(label + '|' + this.seed)); }
 }
-let MASTER = new RNG(hashString('squall'));
+let MASTER = new RNG(hashString('island'));
 
 // Seeded 2D simplex noise for the CPU terrain.
 class Noise2D {
@@ -2233,7 +2233,7 @@ const Sound = {
     if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     const ctx = this.ctx = new AC();
-    this.rng = new RNG(hashString('audio|' + (Atmo.seed || 'squall')));
+    this.rng = new RNG(hashString('audio|' + (Atmo.seed || 'island')));
     this.master = ctx.createGain(); this.master.gain.value = this.muted ? 0 : 0.85;
     const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
     this.master.connect(comp); comp.connect(ctx.destination);
@@ -2332,10 +2332,10 @@ const UI = {
     bind('windDir', v => Atmo.userDirFrom = v, v => compass(v));
     bind('erodeSpeed', v => Sim.erodeSpeed = v, v => v.toFixed(1) + '×');
     document.querySelectorAll('#wxBtns button').forEach(b => b.onclick = () => { Atmo.setWeather(b.dataset.wx); this.refreshButtons(); });
-    $('seed').value = new URLSearchParams(location.hash.slice(1)).get('seed') || 'squall';
-    $('seed').addEventListener('keydown', e => { if (e.key === 'Enter') newIsland($('seed').value.trim() || 'squall'); });
-    $('newIsland').onclick = () => newIsland($('seed').value.trim() || 'squall');
-    $('randSeed').onclick = () => { const w = ['gale', 'reef', 'tern', 'kelp', 'brine', 'cairn', 'fjord', 'puffin', 'squall', 'tide', 'drift', 'basalt']; const s = w[Math.floor(Math.random() * w.length)] + '-' + Math.floor(Math.random() * 9999); $('seed').value = s; newIsland(s); };
+    $('seed').value = new URLSearchParams(location.hash.slice(1)).get('seed') || 'island';
+    $('seed').addEventListener('keydown', e => { if (e.key === 'Enter') newIsland($('seed').value.trim() || 'island'); });
+    $('newIsland').onclick = () => newIsland($('seed').value.trim() || 'island');
+    $('randSeed').onclick = () => { const w = ['gale', 'reef', 'tern', 'kelp', 'brine', 'cairn', 'fjord', 'puffin', 'swell', 'tide', 'drift', 'basalt']; const s = w[Math.floor(Math.random() * w.length)] + '-' + Math.floor(Math.random() * 9999); $('seed').value = s; newIsland(s); };
     $('resetErosion').onclick = () => { Layers.upload(World.island, Atmo.T0); warmUp(20); };
     $('pauseErosion').onclick = () => { Sim.paused = !Sim.paused; $('pauseErosion').classList.toggle('on', Sim.paused); $('pauseErosion').textContent = Sim.paused ? 'Erosion paused' : 'Pause erosion'; };
     $('rainTest').onclick = () => { Atmo.setWeather('storm'); $('erodeSpeed').value = 3; $('erodeSpeed').dispatchEvent(new Event('input')); this.refreshButtons(); };
@@ -2536,7 +2536,7 @@ function main() {
     if (!renderer.capabilities.isWebGL2) return fail('This diorama needs WebGL 2.');
     if (!renderer.extensions.has('EXT_color_buffer_float')) return fail('This diorama needs float render targets (EXT_color_buffer_float).');
     GPU.init(renderer); Layers.init(); Sim.create();
-    Atmo.reset('squall');
+    Atmo.reset('island');
     UI.init(); Cam.init(renderer.domElement);
     newIsland($('seed').value);
     Cam.update(0.016);
