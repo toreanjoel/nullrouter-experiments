@@ -1,0 +1,26 @@
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Private tool state and scratch work: never part of the published runs
+.nullrouter/
+.scratch/
+*.db
+*.db-wal
+*.db-shm
+
+# Secrets and local config
+.env
+.env.*
+*.key
+*.pem
+
+# Dependencies and build output
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+dist/

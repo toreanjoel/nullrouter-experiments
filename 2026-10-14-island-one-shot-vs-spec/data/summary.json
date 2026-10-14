@@ -1,0 +1,53 @@
+{
+  "router": {
+    "cost": 56.8047753,
+    "split": {
+      "input": 0.004624,
+      "cache_write": 17.385483999999998,
+      "cache_read": 21.6700073,
+      "output": 17.74466
+    },
+    "tokens": {
+      "input": 1158,
+      "output": 887367,
+      "cache_read": 108368779,
+      "cache_write": 2183480
+    },
+    "turns": 33,
+    "opus_turns": 31,
+    "causes": {
+      "output": 17.74466,
+      "cache reads": 21.6700073,
+      "new context": 3.5855879999999978,
+      "subagents": 0,
+      "model switches": 0.04246,
+      "expired caches": 2.0661039999999997,
+      "compactions": 11.695048,
+      "uncached input": 0.0009079999999999995
+    }
+  },
+  "claude": {
+    "cost": 19.07,
+    "output": 440000,
+    "cache_read": 24200000,
+    "cache_write": 678100,
+    "input": 252,
+    "split": {
+      "output": 8.8,
+      "cache_read": 4.84,
+      "cache_write": 5.42
+    }
+  },
+  "effort_cost": {
+    "high": 29.23,
+    "medium": 14.34,
+    "xhigh": 12.45,
+    "low": 0.79
+  },
+  "effort_messages": {
+    "high": 8,
+    "medium": 10,
+    "xhigh": 2,
+    "low": 3
+  }
+}

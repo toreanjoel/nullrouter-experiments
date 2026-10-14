@@ -1,0 +1,2555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Island Weather Diorama</title>
+<style>
+:root{--bg:#0d1430;--panel:rgba(24,22,44,.86);--line:rgba(255,255,255,.09);--fg:#eef0ff;--muted:#a3a7d2;--accent:#8fd14f;--accent2:#5fe0d0}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--fg);font:12px/1.4 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+canvas{display:block;outline:none;cursor:grab;touch-action:none}
+canvas.drag{cursor:grabbing}
+#panel{position:fixed;top:12px;right:12px;width:296px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 10px 30px rgba(0,0,0,.35);user-select:none;z-index:5}
+#panel header{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;font-weight:650;letter-spacing:.02em;cursor:pointer}
+#panel header .chev{opacity:.7;transition:transform .2s}
+#panel.collapsed header .chev{transform:rotate(-90deg)}
+#panel .body{overflow:auto;padding:0 12px 12px}
+#panel.collapsed .body{display:none}
+#panel h3{margin:12px 0 6px;font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:650}
+.row{display:grid;grid-template-columns:88px 1fr 46px;align-items:center;gap:6px;margin:3px 0}
+.row .v{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.row2{display:grid;grid-template-columns:88px 1fr;align-items:center;gap:6px;margin:4px 0}
+input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+select,input[type=text]{width:100%;background:rgba(255,255,255,.06);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font:inherit}
+select option{background:#1d1b33}
+.btns{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.btns.three{grid-template-columns:repeat(3,1fr)}
+button{background:rgba(255,255,255,.07);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px 4px;font:inherit;cursor:pointer;white-space:nowrap}
+button:hover{background:rgba(255,255,255,.15)}
+button.on{background:var(--accent);color:#16240c;border-color:transparent;font-weight:600}
+#readout{display:grid;grid-template-columns:1fr auto;gap:1px 10px;font-variant-numeric:tabular-nums;padding:8px 10px;background:rgba(0,0,0,.2);border-radius:8px;margin-top:2px}
+#readout .k{color:var(--muted)}
+#readout .wn{grid-column:1/3;font-size:15px;font-weight:700;color:#fff;margin-bottom:3px}
+#stats{margin-top:6px;color:var(--muted);font-variant-numeric:tabular-nums}
+#hint{position:fixed;left:14px;bottom:12px;color:rgba(255,255,255,.8);font-size:12px;text-shadow:0 1px 3px rgba(0,0,0,.7);pointer-events:none;z-index:4}
+#mute{position:fixed;left:12px;top:12px;z-index:5;padding:6px 10px;background:var(--panel);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#msg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;background:#0d1430;color:#fff;font-size:15px;z-index:10;transition:opacity .6s}
+#msg.hide{opacity:0;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="msg">Raising the island…</div>
+<button id="mute" title="Toggle sound">🔇 Sound off</button>
+<div id="hint">Drag to orbit · scroll to zoom · click to start sound</div>
+<div id="panel">
+  <header id="panelHead"><span>Island weather</span><span class="chev">▾</span></header>
+  <div class="body">
+    <div id="readout"></div>
+    <h3>Time</h3>
+    <div class="row"><span>Time of day</span><input type="range" id="tod" min="0" max="24" step="0.01"><span class="v" id="todV"></span></div>
+    <div class="row2"><span>Time speed</span><select id="tspeed">
+      <option value="0">Paused</option><option value="0.25">¼× (32 min day)</option><option value="0.5">½× (16 min day)</option>
+      <option value="1" selected>1× (8 min day)</option><option value="2">2× (4 min day)</option><option value="4">4× (2 min day)</option><option value="8">8× (1 min day)</option></select></div>
+    <div class="row2"><span>Season</span><select id="season">
+      <option value="spring">Spring</option><option value="summer" selected>Summer</option><option value="autumn">Autumn</option><option value="winter">Winter</option></select></div>
+    <h3>Atmosphere</h3>
+    <div class="row"><span>Temperature</span><input type="range" id="tempOff" min="-15" max="15" step="0.5" value="0"><span class="v" id="tempOffV"></span></div>
+    <div class="row"><span>Humidity</span><input type="range" id="humBias" min="-40" max="40" step="1" value="0"><span class="v" id="humBiasV"></span></div>
+    <div class="row"><span>Wind speed</span><input type="range" id="windMul" min="0" max="3" step="0.05" value="1"><span class="v" id="windMulV"></span></div>
+    <div class="row"><span>Wind from</span><input type="range" id="windDir" min="0" max="359" step="1" value="250"><span class="v" id="windDirV"></span></div>
+    <h3>Weather</h3>
+    <div class="btns" id="wxBtns">
+      <button data-wx="auto">Auto</button><button data-wx="clear">Clear</button><button data-wx="overcast">Overcast</button><button data-wx="rain">Rain</button>
+      <button data-wx="storm">Storm</button><button data-wx="snow">Snow</button><button data-wx="fog">Fog</button><button data-wx="clearing">Clearing</button>
+    </div>
+    <h3>Island &amp; erosion</h3>
+    <div class="row2"><span>Seed</span><input type="text" id="seed" spellcheck="false"></div>
+    <div class="btns three" style="margin-top:4px"><button id="newIsland">New island</button><button id="randSeed">Random</button><button id="resetErosion">Reset erosion</button></div>
+    <div class="row" style="margin-top:6px"><span>Erosion speed</span><input type="range" id="erodeSpeed" min="0" max="5" step="0.1" value="1"><span class="v" id="erodeSpeedV"></span></div>
+    <div class="btns three"><button id="pauseErosion">Pause erosion</button><button id="rainTest" title="Hold a heavy storm to watch erosion">Long storm</button><button id="quality">Quality: auto</button></div>
+    <h3>Debug overlay</h3>
+    <div class="row2"><span>Layer</span><select id="debugLayer">
+      <option value="0">Off (normal view)</option><option value="1">Water depth</option><option value="2">Sediment</option><option value="3">Wetness</option>
+      <option value="4">Snow depth</option><option value="5">Temperature</option><option value="6">Vegetation</option><option value="7">Suspended sediment</option><option value="8">Wind speed</option></select></div>
+    <div id="stats"></div>
+  </div>
+</div>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+/* =====================================================================================
+   CONFIG — every tunable constant, the hand-picked palette and the uniforms that all
+   shaders share (one object per uniform, so one write updates every material).
+   World units are metres. The heightfield is GRID×GRID cells of CELL metres.
+   ===================================================================================== */
+const CONFIG = {
+  GRID: 256,             // heightfield cells per side (≥256 per spec)
+  CELL: 30,              // metres per cell → 7.68 km domain
+  PEAK: 2150,            // summit height (m) — tall enough to hold snow via the lapse rate
+  ISLAND_R: 0.31,        // island radius as a fraction of the domain
+  CLOUD_RES: 256,        // cloud/precipitation field resolution
+  CLOUD_SPAN: 3,         // cloud field covers 3× the terrain domain
+  WIND_RES: 128,         // wind field resolution (covers the terrain domain)
+  SUMMARY: 64,           // CPU read-back resolution of the shared layers
+  LAPSE: 0.0065,         // standard lapse rate, °C per metre
+  DEW_LAPSE: 0.0018,     // dew point lapse, °C per metre
+  DAY_SECONDS: 480,      // real seconds per simulated day at 1× speed
+  LATITUDE: 36,          // degrees north
+  TIDE_AMP: 4.5,         // metres
+  TIDE_PERIOD_H: 12.42,  // hours of simulated time
+  SIM_DT: 0.5,           // hydrology seconds per GPU step
+  STEPS: [8, 6, 4, 3, 2, 1], // sim steps per frame, quality ladder
+  GRASS: 120000, TREES: 1100, ROCKS: 280,
+  RAIN: 30000, SNOW: 18000, SPLASH: 9000, HAIL: 3500, DUST: 7000, SPRAY: 6000, SMOKE: 900,
+  NEAR: 15, FAR: 90000,
+};
+const N = CONFIG.GRID, CELL = CONFIG.CELL;
+const DOMAIN = N * CELL;
+const CLOUD_DOMAIN = DOMAIN * CONFIG.CLOUD_SPAN;
+const HALF = (N - 1) / 2;
+
+// One limited palette. Weather never adds colours: it re-tints these every frame.
+const PALETTE = {
+  ink:        '#2b2546', sand:       '#f1d9a0', soil:      '#a57b52', grass:      '#86c94e',
+  grassDark:  '#4c9440', grassDry:   '#c9b46b', rock:      '#9b958f', rockDark:   '#6f6a76',
+  snow:       '#f6f8ff', snowShade:  '#b8c2ee', ice:       '#d9f1ff', foliage:    '#68bb47',
+  foliageDark:'#2e7a4b', trunk:      '#7a5338', scorch:    '#2c2729', waterShallow:'#62e3cf',
+  waterMid:   '#26a9c6', waterDeep:  '#1c4b98', foam:      '#ffffff', skyTop:     '#3b8be0',
+  skyHorizon: '#bfe5ff', sunset:     '#ff9b5c', dusk:      '#8a6fb3', nightTop:   '#0b1230',
+  nightHorizon:'#26305c',sun:        '#fff3c9', moon:      '#e6ebff', cloud:      '#ffffff',
+  cloudShade: '#b6bee2', cloudStorm: '#565c78', shadow:    '#8a8ed8', lightning:  '#e9e6ff',
+  smoke:      '#5d5663', bow1:'#ff6b6b', bow2:'#ffb35c', bow3:'#ffe66b', bow4:'#7fe07a', bow5:'#6bb8ff', bow6:'#a98bff',
+};
+const PAL_RGB = {};
+for (const k in PALETTE) { const c = new THREE.Color(PALETTE[k]); PAL_RGB[k] = [c.r, c.g, c.b]; }
+THREE.ColorManagement.enabled = false;  // palette values are used exactly as authored
+
+// Uniforms shared by every material.
+const U = {
+  uTime: { value: 0 }, uSeedOff: { value: new THREE.Vector2() },
+  uGrid: { value: N }, uCell: { value: CELL }, uDomain: { value: DOMAIN }, uCloudDomain: { value: CLOUD_DOMAIN },
+  tGround: { value: null }, tFlux: { value: null }, tSurf: { value: null }, tSoil: { value: null },
+  tWind: { value: null }, tCloud: { value: null }, tShadow: { value: null },
+  uShadowMat: { value: new THREE.Matrix4() }, uShadowPoint: { value: 0 }, uShadowBias: { value: 0.0006 }, uShadowOn: { value: 1 },
+  uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uMoonDir: { value: new THREE.Vector3(0, -1, 0) },
+  uLightDir: { value: new THREE.Vector3(0, 1, 0) }, uLightCol: { value: new THREE.Vector3(1, 1, 1) },
+  uShadowCol: { value: new THREE.Vector3(0.5, 0.5, 0.8) }, uSkyTop: { value: new THREE.Vector3() }, uSkyHor: { value: new THREE.Vector3() },
+  uFogCol: { value: new THREE.Vector3() }, uDay: { value: 1 }, uNight: { value: 0 },
+  uFlash: { value: 0 }, uFlashPos: { value: new THREE.Vector3() },
+  uSeaLevel: { value: 0 }, uWind: { value: new THREE.Vector2(5, 0) }, uWindSpeed: { value: 5 },
+  uStorm: { value: 0 }, uCover: { value: 0 }, uCloudBase: { value: 1500 }, uTAir: { value: 18 }, uDew: { value: 10 }, uRH: { value: 0.6 },
+  uWaveAmp: { value: 1 }, uCamPos: { value: new THREE.Vector3() }, uDebug: { value: 0 }, uSeaFog: { value: 0 },
+  uCloudOff: { value: new THREE.Vector2() }, uGustOff: { value: new THREE.Vector2() }, uPrecipView: { value: 0 },
+};
+for (const k in PAL_RGB) U['p_' + k] = { value: new THREE.Vector3(...PAL_RGB[k]) };
+const PALETTE_GLSL = Object.keys(PAL_RGB).map(k => `uniform vec3 p_${k};`).join('\n');
+
+/* =====================================================================================
+   RANDOM — one seeded generator (mulberry32) for everything. Sub-streams are forked
+   from the master seed by label, so terrain, weather, lightning, placement and audio
+   noise are all reproducible from the same seed, independent of frame rate.
+   GPU noise is seeded with an offset derived from the same seed.
+   ===================================================================================== */
+function hashString(str) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h1 ^ h2) >>> 0;
+}
+class RNG {
+  constructor(seed) { this.seed = seed >>> 0; this.s = this.seed; }
+  next() {
+    let t = (this.s = (this.s + 0x6D2B79F5) >>> 0);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  range(a, b) { return a + (b - a) * this.next(); }
+  int(n) { return Math.floor(this.next() * n); }
+  sign() { return this.next() < 0.5 ? -1 : 1; }
+  gauss() { let u = 0, v = 0; while (u === 0) u = this.next(); v = this.next(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(6.283185 * v); }
+  fork(label) { return new RNG(hashString(label + '|' + this.seed)); }
+}
+let MASTER = new RNG(hashString('squall'));
+
+// Seeded 2D simplex noise for the CPU terrain.
+class Noise2D {
+  constructor(rng) {
+    const p = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) p[i] = i;
+    for (let i = 255; i > 0; i--) { const j = rng.int(i + 1); const t = p[i]; p[i] = p[j]; p[j] = t; }
+    this.perm = new Uint8Array(512);
+    for (let i = 0; i < 512; i++) this.perm[i] = p[i & 255];
+  }
+  noise(x, y) {
+    const F2 = 0.366025403784, G2 = 0.211324865405, perm = this.perm;
+    const s = (x + y) * F2, i = Math.floor(x + s), j = Math.floor(y + s);
+    const t = (i + j) * G2, x0 = x - (i - t), y0 = y - (j - t);
+    const i1 = x0 > y0 ? 1 : 0, j1 = 1 - i1;
+    const x1 = x0 - i1 + G2, y1 = y0 - j1 + G2, x2 = x0 - 1 + 2 * G2, y2 = y0 - 1 + 2 * G2;
+    const ii = i & 255, jj = j & 255;
+    const grad = (h, gx, gy) => { h &= 7; const u = h < 4 ? gx : gy, v = h < 4 ? gy : gx; return ((h & 1) ? -u : u) + ((h & 2) ? -2 * v : 2 * v); };
+    let n = 0, tt;
+    tt = 0.5 - x0 * x0 - y0 * y0; if (tt > 0) { tt *= tt; n += tt * tt * grad(perm[ii + perm[jj]], x0, y0); }
+    tt = 0.5 - x1 * x1 - y1 * y1; if (tt > 0) { tt *= tt; n += tt * tt * grad(perm[ii + i1 + perm[jj + j1]], x1, y1); }
+    tt = 0.5 - x2 * x2 - y2 * y2; if (tt > 0) { tt *= tt; n += tt * tt * grad(perm[ii + 1 + perm[jj + 1]], x2, y2); }
+    return 40 * n; // ≈ [-1, 1]
+  }
+  fbm(x, y, oct = 5) { let a = 0.5, f = 1, s = 0, n = 0; for (let o = 0; o < oct; o++) { s += a * this.noise(x * f, y * f); n += a; a *= 0.5; f *= 2.03; } return s / n; }
+  ridged(x, y, oct = 5) { let a = 0.5, f = 1, s = 0, n = 0, w = 1; for (let o = 0; o < oct; o++) { let v = 1 - Math.abs(this.noise(x * f, y * f)); v *= v * w; w = Math.min(1, v * 2); s += a * v; n += a; a *= 0.5; f *= 2.1; } return s / n; }
+}
+
+const clamp = (x, a, b) => x < a ? a : x > b ? b : x;
+const clamp01 = x => x < 0 ? 0 : x > 1 ? 1 : x;
+const lerp = (a, b, t) => a + (b - a) * t;
+const smoothstep = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+const approach = (v, target, dt, tau) => v + (target - v) * (1 - Math.exp(-dt / tau));
+const approachAngle = (a, b, dt, tau) => { let d = ((b - a + Math.PI * 3) % (Math.PI * 2)) - Math.PI; return a + d * (1 - Math.exp(-dt / tau)); };
+
+// Seeded GPU noise, shared by every shader that needs texture-free noise.
+const NOISE_GLSL = /* glsl */`
+uniform vec2 uSeedOff;
+float hash12(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+float hash11(float p){ p = fract(p * .1031); p *= p + 33.33; p *= p + p; return fract(p); }
+float vnoise(vec2 p){ p += uSeedOff; vec2 i = floor(p), f = fract(p); vec2 u = f*f*(3.-2.*f);
+  return mix(mix(hash12(i), hash12(i+vec2(1,0)), u.x), mix(hash12(i+vec2(0,1)), hash12(i+vec2(1,1)), u.x), u.y); }
+float fbm(vec2 p){ float a = .5, s = 0.; for(int i=0;i<5;i++){ s += a*vnoise(p); p = p*2.03 + vec2(17.1, 9.7); a *= .5; } return s/0.96875; }
+float fbm3(vec2 p){ float a = .5, s = 0.; for(int i=0;i<3;i++){ s += a*vnoise(p); p = p*2.03 + vec2(17.1, 9.7); a *= .5; } return s/0.875; }
+`;
+
+/* =====================================================================================
+   TERRAIN — the island heightfield and its per-cell layers.
+   The CPU builds the initial island once per seed (fractal noise + radial falloff + a
+   short droplet-erosion pass so valleys exist), then everything lives on the GPU in four
+   float textures that every system reads and writes:
+     ground = (rock height, loose sediment, water depth, suspended sediment)
+     flux   = shallow-water outflow to (left, right, down, up)
+     surf   = (wetness, snow depth, near-ground air temperature °C, vegetation density)
+     soil   = (soil moisture, greenness, ice, frost)
+   A 64×64 summary is read back to the CPU periodically (camera, lightning, audio).
+   ===================================================================================== */
+function bilinear(arr, fx, fy) {
+  fx = clamp(fx, 0, N - 1.001); fy = clamp(fy, 0, N - 1.001);
+  const x0 = fx | 0, y0 = fy | 0, tx = fx - x0, ty = fy - y0, i = y0 * N + x0;
+  return (arr[i] * (1 - tx) + arr[i + 1] * tx) * (1 - ty) + (arr[i + N] * (1 - tx) + arr[i + N + 1] * tx) * ty;
+}
+const worldToGrid = w => w / CELL + HALF;
+
+function dropletErosion(h, deposit, rng, count) {
+  const inertia = 0.08, capK = 3.0, minCap = 0.01, eroK = 0.3, depK = 0.25, evap = 0.03, grav = 4, HS = 40;
+  for (let d = 0; d < count; d++) {
+    let x = rng.range(2, N - 3), y = rng.range(2, N - 3);
+    if (bilinear(h, x, y) < 25) continue;
+    let dx = 0, dy = 0, speed = 1, water = 1, sed = 0;
+    for (let life = 0; life < 80; life++) {
+      const xi = x | 0, yi = y | 0, fx = x - xi, fy = y - yi, i = yi * N + xi;
+      const h00 = h[i], h10 = h[i + 1], h01 = h[i + N], h11 = h[i + N + 1];
+      const gx = (h10 - h00) * (1 - fy) + (h11 - h01) * fy, gy = (h01 - h00) * (1 - fx) + (h11 - h10) * fx;
+      const hOld = (h00 * (1 - fx) + h10 * fx) * (1 - fy) + (h01 * (1 - fx) + h11 * fx) * fy;
+      dx = dx * inertia - gx * (1 - inertia); dy = dy * inertia - gy * (1 - inertia);
+      const len = Math.hypot(dx, dy); if (len < 1e-7) break;
+      dx /= len; dy /= len; x += dx; y += dy;
+      if (x < 2 || y < 2 || x > N - 3 || y > N - 3) break;
+      const hNew = bilinear(h, x, y), dh = (hNew - hOld) / HS;
+      const w00 = (1 - fx) * (1 - fy), w10 = fx * (1 - fy), w01 = (1 - fx) * fy, w11 = fx * fy;
+      const cap = Math.max(-dh * speed * water * capK, minCap);
+      if (sed > cap || dh > 0 || hNew < -3) {
+        const amt = (dh > 0 && hNew >= -3) ? Math.min(dh, sed) : (hNew < -3 ? sed : (sed - cap) * depK);
+        sed -= amt; const m = amt * HS;
+        h[i] += m * w00; h[i + 1] += m * w10; h[i + N] += m * w01; h[i + N + 1] += m * w11;
+        deposit[i] += m * w00; deposit[i + 1] += m * w10; deposit[i + N] += m * w01; deposit[i + N + 1] += m * w11;
+        if (hNew < -3) break;
+      } else {
+        const amt = Math.min((cap - sed) * eroK, -dh) ; sed += amt; const m = amt * HS;
+        h[i] -= m * w00; h[i + 1] -= m * w10; h[i + N] -= m * w01; h[i + N + 1] -= m * w11;
+        deposit[i] -= m * w00; deposit[i + 1] -= m * w10; deposit[i + N] -= m * w01; deposit[i + N + 1] -= m * w11;
+      }
+      speed = Math.sqrt(Math.max(0.01, speed * speed - dh * grav));
+      water *= 1 - evap;
+    }
+  }
+}
+
+function generateIsland(seedStr) {
+  const rng = new RNG(hashString('terrain|' + seedStr));
+  const noise = new Noise2D(rng);
+  const R = DOMAIN * CONFIG.ISLAND_R;
+  const cx = rng.range(-0.02, 0.02) * DOMAIN, cz = rng.range(-0.02, 0.02) * DOMAIN;
+  const h = new Float32Array(N * N);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const x = (i - HALF) * CELL, z = (j - HALF) * CELL;
+    const wx = x + noise.fbm(x * 0.00032 + 3.1, z * 0.00032 - 7.7, 4) * 700;
+    const wz = z + noise.fbm(x * 0.00032 - 5.3, z * 0.00032 + 2.9, 4) * 700;
+    const r = Math.hypot(wx - cx, wz - cz) / R;
+    const core = 0.45 * Math.exp(-Math.pow(r / 0.36, 2)) + 0.55 * Math.pow(clamp01(1 - r), 1.35);
+    const mountain = smoothstep(1.0, 0.12, r);
+    const ridge = noise.ridged(wx * 0.0006 + 9.3, wz * 0.0006 - 1.7, 4);
+    const hills = noise.fbm(x * 0.0022, z * 0.0022, 4);
+    let land = CONFIG.PEAK * core * (0.86 + 0.22 * ridge * mountain) + ridge * 130 * mountain + hills * 170 * smoothstep(1.05, 0.45, r);
+    land *= smoothstep(1.0, 0.8, r);
+    const reef = Math.max(0, noise.ridged(x * 0.0045, z * 0.0045, 3) - 0.5) * 16 * smoothstep(0.97, 1.05, r) * smoothstep(1.26, 1.12, r);
+    const shelf = 7 - 17 * smoothstep(0.88, 1.1, r) - 185 * smoothstep(1.17, 1.62, r) + reef;
+    h[j * N + i] = land + shelf;
+  }
+  let mx = -1e9; for (let n = 0; n < h.length; n++) mx = Math.max(mx, h[n]);
+  const k = CONFIG.PEAK / mx; for (let n = 0; n < h.length; n++) if (h[n] > 0) h[n] *= k;
+
+  // A short droplet erosion so the island starts with valleys the rain can find.
+  const deposit = new Float32Array(N * N);
+  dropletErosion(h, deposit, rng.fork('droplets'), 42000);
+
+  const rock = new Float32Array(N * N), sed = new Float32Array(N * N);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const n = j * N + i, hv = h[n];
+    const il = Math.max(i - 1, 0), ir = Math.min(i + 1, N - 1), jd = Math.max(j - 1, 0), ju = Math.min(j + 1, N - 1);
+    const gx = (h[j * N + ir] - h[j * N + il]) / ((ir - il) * CELL), gz = (h[ju * N + i] - h[jd * N + i]) / ((ju - jd) * CELL);
+    const slope = Math.hypot(gx, gz);
+    let s = clamp(3.4 - slope * 4.2, 0, 3.4) * (0.75 + 0.5 * (noise.fbm(i * 0.05, j * 0.05, 2) * 0.5 + 0.5));
+    if (hv < 16) s = Math.max(s, 2.6 * smoothstep(-60, -5, hv) + 0.4);
+    s += Math.max(0, deposit[n]) * 0.8;
+    s = Math.min(s, 6);
+    sed[n] = s; rock[n] = hv - s;
+  }
+  return { seed: seedStr, height: h, rock, sed, R, cx, cz };
+}
+
+// Trees, boulders and grass blades are placed once from the initial island; they read the
+// live heightfield in their vertex shaders so they follow erosion afterwards.
+function placeFlora(island) {
+  const rng = new RNG(hashString('flora|' + island.seed));
+  const forest = new Noise2D(rng);
+  const h = island.height, R = island.R;
+  const hAt = (x, z) => bilinear(h, worldToGrid(x), worldToGrid(z));
+  const slopeAt = (x, z) => { const e = CELL; return Math.hypot(hAt(x + e, z) - hAt(x - e, z), hAt(x, z + e) - hAt(x, z - e)) / (2 * e); };
+  const disc = () => { const a = rng.next() * Math.PI * 2, r = Math.sqrt(rng.next()) * R * 1.02; return [island.cx + Math.cos(a) * r, island.cz + Math.sin(a) * r]; };
+
+  const trees = [];
+  for (let t = 0; t < CONFIG.TREES * 40 && trees.length < CONFIG.TREES; t++) {
+    const [x, z] = disc(); const hv = hAt(x, z), s = slopeAt(x, z);
+    if (hv < 16 || hv > 1380 || s > 0.62) continue;
+    const f = forest.fbm(x * 0.0011, z * 0.0011, 3);
+    if (f < -0.08 + (hv / 1380) * 0.35 + s * 0.2) continue;
+    trees.push({ x, z, scale: rng.range(0.7, 1.35), rot: rng.next() * 6.283, kind: rng.next(), scorch: 0, smoulder: 0 });
+  }
+  const rocks = [];
+  for (let t = 0; t < CONFIG.ROCKS * 60 && rocks.length < CONFIG.ROCKS; t++) {
+    const [x, z] = disc(); const hv = hAt(x, z), s = slopeAt(x, z);
+    if (hv < 1) continue;
+    const want = (s > 0.45 && s < 1.6) || (hv < 14 && rng.next() < 0.25) || rng.next() < 0.04;
+    if (!want) continue;
+    rocks.push({ x, z, scale: rng.range(0.6, 1.8) * (hv < 14 ? 0.6 : 1), rot: rng.next() * 6.283, tilt: rng.range(-0.3, 0.3) });
+  }
+  const gPos = new Float32Array(CONFIG.GRASS * 2), gRnd = new Float32Array(CONFIG.GRASS * 4);
+  let g = 0;
+  for (let t = 0; t < CONFIG.GRASS * 6 && g < CONFIG.GRASS; t++) {
+    const [x, z] = disc(); const hv = hAt(x, z);
+    if (hv < 5 || hv > 1950 || slopeAt(x, z) > 1.0) continue;
+    gPos[g * 2] = x; gPos[g * 2 + 1] = z;
+    gRnd[g * 4] = rng.next(); gRnd[g * 4 + 1] = rng.next(); gRnd[g * 4 + 2] = rng.next(); gRnd[g * 4 + 3] = rng.next();
+    g++;
+  }
+  return { trees, rocks, gPos, gRnd, grassCount: g };
+}
+
+// ---- GPU layer store ---------------------------------------------------------------
+const GPU = {
+  init(renderer) {
+    this.renderer = renderer;
+    this.scene = new THREE.Scene();
+    this.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    this.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2));
+    this.quad.frustumCulled = false;
+    this.scene.add(this.quad);
+  },
+  run(mat, target) {
+    this.quad.material = mat;
+    this.renderer.setRenderTarget(target);
+    this.renderer.render(this.scene, this.cam);
+  },
+};
+function makeRT(w, h, opts = {}) {
+  const rt = new THREE.WebGLRenderTarget(w, h, Object.assign({
+    type: THREE.FloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter,
+    wrapS: THREE.ClampToEdgeWrapping, wrapT: THREE.ClampToEdgeWrapping, depthBuffer: false, stencilBuffer: false, generateMipmaps: false,
+  }, opts));
+  return rt;
+}
+class PingPong {
+  constructor(w, h, opts) { this.a = makeRT(w, h, opts); this.b = makeRT(w, h, opts); }
+  get read() { return this.a.texture; }
+  get target() { return this.b; }
+  swap() { const t = this.a; this.a = this.b; this.b = t; }
+}
+const SIM_VS = /* glsl */`void main(){ gl_Position = vec4(position.xy, 0., 1.); }`;
+
+// Simulation uniforms (not shared with rendering materials).
+const SIMU = {
+  uDt: { value: CONFIG.SIM_DT }, uAtmoDt: { value: 1 }, uRainRate: { value: 2.4e-4 }, uSnowRate: { value: 5.5e-4 },
+  uHail: { value: 0 }, uSunHeat: { value: 0 }, uNightCool: { value: 0 }, uErode: { value: 1 }, uWaveEnergy: { value: 0 },
+  uCalm: { value: 1 }, uFrostCycle: { value: 0 }, uRunup: { value: 2 }, tSrc: { value: null }, uSumBlock: { value: 4 },
+};
+const SIM_HEADER = /* glsl */`
+precision highp float; precision highp sampler2D;
+uniform sampler2D tGround, tFlux, tSurf, tSoil, tWind, tCloud;
+uniform float uGrid, uCell, uDomain, uCloudDomain, uSeaLevel, uTime;
+uniform float uDt, uAtmoDt, uRainRate, uSnowRate, uHail, uSunHeat, uNightCool, uErode, uWaveEnergy, uCalm, uFrostCycle, uRunup;
+uniform float uTAir, uDew, uRH, uWindSpeed, uStorm;
+uniform vec2 uWind;
+${NOISE_GLSL}
+ivec2 clampCell(ivec2 p){ return clamp(p, ivec2(0), ivec2(int(uGrid) - 1)); }
+vec4 Gr(ivec2 p){ return texelFetch(tGround, clampCell(p), 0); }
+vec4 Fx(ivec2 p){ return texelFetch(tFlux,   clampCell(p), 0); }
+vec4 Sf(ivec2 p){ return texelFetch(tSurf,   clampCell(p), 0); }
+vec4 Sl(ivec2 p){ return texelFetch(tSoil,   clampCell(p), 0); }
+float groundOf(vec4 g){ return g.r + g.g; }
+vec2 cellWorld(ivec2 p){ return (vec2(p) - (uGrid - 1.) * 0.5) * uCell; }
+vec4 cloudAt(vec2 wp){ return texture(tCloud, wp / uCloudDomain + 0.5); }
+vec4 windAt(vec2 wp){ return texture(tWind, wp / uDomain + 0.5); }
+bool isEdge(ivec2 p){ return p.x == 0 || p.y == 0 || p.x == int(uGrid) - 1 || p.y == int(uGrid) - 1; }
+float fixf(float x){ return (x != x || abs(x) > 1e6) ? 0. : x; }   // NaN / runaway guard
+`;
+function simMaterial(fs, extra = {}) {
+  return new THREE.ShaderMaterial({
+    vertexShader: SIM_VS, fragmentShader: SIM_HEADER + fs,
+    uniforms: Object.assign({}, U, SIMU, extra), depthTest: false, depthWrite: false,
+  });
+}
+
+const COPY_FS = /* glsl */`uniform sampler2D tSrc; void main(){ gl_FragColor = texelFetch(tSrc, ivec2(gl_FragCoord.xy), 0); }`;
+const SUMMARY_FS = /* glsl */`
+uniform float uSumBlock; uniform float uSumMode;
+void main(){
+  ivec2 o = ivec2(gl_FragCoord.xy); int B = int(uSumBlock);
+  if (uSumMode > 1.5) { gl_FragColor = cloudAt(((vec2(o) + 0.5) / 32. - 0.5) * uCloudDomain); return; }   // whole cloud field, coarse
+  float a = -1e9, b = 0., c = 0., d = 0., n = 0.;
+  for (int j = 0; j < 16; j++) { if (j >= B) break;
+    for (int i = 0; i < 16; i++) { if (i >= B) break;
+      ivec2 p = o * B + ivec2(i, j); vec4 g = Gr(p), s = Sf(p);
+      if (uSumMode < 0.5) { a = max(a, groundOf(g)); b = max(b, g.b); c += s.g; d += s.b; }
+      else { a = max(a, 0.); b += s.r; c += s.a; }
+      n += 1.;
+    } }
+  if (uSumMode < 0.5) { gl_FragColor = vec4(a, b, c / n, d / n); }
+  else {
+    vec2 wp = cellWorld(o * B + B / 2);
+    vec4 cl = cloudAt(wp);
+    gl_FragColor = vec4(b / n, c / n, clamp((cl.a - cl.b) / 9000., 0., 1.) * cl.r, cl.g);
+  }
+}`;
+
+const Layers = {
+  init() {
+    this.ground = new PingPong(N, N); this.flux = new PingPong(N, N);
+    this.surf = new PingPong(N, N); this.soil = new PingPong(N, N);
+    this.wind = makeRT(CONFIG.WIND_RES, CONFIG.WIND_RES, { type: THREE.HalfFloatType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+    this.cloud = makeRT(CONFIG.CLOUD_RES, CONFIG.CLOUD_RES, { type: THREE.HalfFloatType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+    const S = CONFIG.SUMMARY;
+    this.sumA = makeRT(S, S); this.sumB = makeRT(S, S); this.sumC = makeRT(32, 32);
+    this.A = new Float32Array(S * S * 4); this.B = new Float32Array(S * S * 4); this.C = new Float32Array(32 * 32 * 4);
+    this.copyMat = new THREE.ShaderMaterial({ vertexShader: SIM_VS, fragmentShader: 'precision highp float; precision highp sampler2D;\n' + COPY_FS, uniforms: { tSrc: SIMU.tSrc }, depthTest: false, depthWrite: false });
+    SIMU.uSumBlock.value = N / S;
+    this.sumMat = simMaterial(SUMMARY_FS, { uSumMode: { value: 0 } });
+    this.bindShared();
+  },
+  bindShared() {
+    U.tGround.value = this.ground.read; U.tFlux.value = this.flux.read; U.tSurf.value = this.surf.read; U.tSoil.value = this.soil.read;
+    U.tWind.value = this.wind.texture; U.tCloud.value = this.cloud.texture;
+  },
+  fill(pp, data) {
+    const tex = new THREE.DataTexture(data, N, N, THREE.RGBAFormat, THREE.FloatType);
+    tex.needsUpdate = true;
+    SIMU.tSrc.value = tex;
+    GPU.run(this.copyMat, pp.a); GPU.run(this.copyMat, pp.b);
+    tex.dispose();
+  },
+  upload(island, airTemp) {
+    const sea = U.uSeaLevel.value, G = new Float32Array(N * N * 4), F = new Float32Array(N * N * 4), S = new Float32Array(N * N * 4), L = new Float32Array(N * N * 4);
+    for (let n = 0; n < N * N; n++) {
+      const rock = island.rock[n], sed = island.sed[n], hv = rock + sed;
+      G[n * 4] = rock; G[n * 4 + 1] = sed; G[n * 4 + 2] = Math.max(0, sea - hv); G[n * 4 + 3] = 0;
+      const t = airTemp - CONFIG.LAPSE * Math.max(hv, 0);
+      const vegT = smoothstep(0.05, 0.7, sed) * (1 - smoothstep(1500, 1900, hv)) * smoothstep(sea + 6, sea + 18, hv) * 0.78;
+      S[n * 4] = hv < sea ? 1 : 0.15; S[n * 4 + 1] = t < -1 ? 0.6 * smoothstep(-1, -6, t) : 0; S[n * 4 + 2] = t; S[n * 4 + 3] = vegT;
+      L[n * 4] = 0.45; L[n * 4 + 1] = 0.85; L[n * 4 + 2] = 0; L[n * 4 + 3] = 0;
+    }
+    this.fill(this.ground, G); this.fill(this.flux, F); this.fill(this.surf, S); this.fill(this.soil, L);
+    this.bindShared();
+    this.ready = false;
+  },
+  readback(which) {
+    const S = CONFIG.SUMMARY, r = GPU.renderer;
+    this.sumMat.uniforms.uSumMode.value = which;
+    const rt = [this.sumA, this.sumB, this.sumC][which], arr = [this.A, this.B, this.C][which], n = which === 2 ? 32 : S;
+    GPU.run(this.sumMat, rt);
+    r.readRenderTargetPixels(rt, 0, 0, n, n, arr);
+    if (which === 1) this.ready = true;
+  },
+  // CPU queries on the read-back summary (world metres).
+  sample(arr, x, z, ch) {
+    const S = CONFIG.SUMMARY, fx = clamp((x / DOMAIN + 0.5) * S - 0.5, 0, S - 1.001), fz = clamp((z / DOMAIN + 0.5) * S - 0.5, 0, S - 1.001);
+    const x0 = fx | 0, z0 = fz | 0, tx = fx - x0, tz = fz - z0, i = (z0 * S + x0) * 4 + ch, row = S * 4;
+    return (arr[i] * (1 - tx) + arr[i + 4] * tx) * (1 - tz) + (arr[i + row] * (1 - tx) + arr[i + row + 4] * tx) * tz;
+  },
+  groundAt(x, z) { return this.sample(this.A, x, z, 0); },
+  cloudSample(x, z, ch) {   // coarse read-back of the whole cloud field (density, precip, base, top)
+    const fx = clamp((x / CLOUD_DOMAIN + 0.5) * 32 - 0.5, 0, 30.999), fz = clamp((z / CLOUD_DOMAIN + 0.5) * 32 - 0.5, 0, 30.999);
+    const x0 = fx | 0, z0 = fz | 0, tx = fx - x0, tz = fz - z0, i = (z0 * 32 + x0) * 4 + ch, C = this.C;
+    return (C[i] * (1 - tx) + C[i + 4] * tx) * (1 - tz) + (C[i + 128] * (1 - tx) + C[i + 132] * tx) * tz;
+  },
+};
+
+/* =====================================================================================
+   ATMOSPHERE — a small weather model. Sea-level temperature, humidity, pressure, wind
+   speed and direction all ease toward targets (never jump). Air cools at the standard
+   lapse rate; the dew point comes from the Magnus formula; the lifting condensation
+   level (LCL) is where lifted air reaches its dew point. Clouds only form where air is
+   lifted above the LCL — by the mountain (orographic), a passing front, or daytime
+   convection — so the windward slopes rain and the lee stays dry (rain shadow).
+   A day/night cycle heats and cools the land, which drives a sea breeze by day and a
+   land breeze by night. Seasons shift the base temperature, the sun's path and the odds
+   of each weather. Fronts run clear → building → rain → storm → clearing.
+   The wind field and cloud field are computed on the GPU from this state + the terrain.
+   ===================================================================================== */
+const SEASONS = {
+  spring: { name: 'Spring', base: 14, sea: 15.5, decl: 6,     front: 0.55, storm: 0.3,  convect: 0.6, snow: 0.1 },
+  summer: { name: 'Summer', base: 22, sea: 21,   decl: 23.4,  front: 0.3,  storm: 0.55, convect: 1.0, snow: 0 },
+  autumn: { name: 'Autumn', base: 14, sea: 18,   decl: -6,    front: 0.65, storm: 0.35, convect: 0.4, snow: 0.1 },
+  winter: { name: 'Winter', base: 6,  sea: 13.5, decl: -23.4, front: 0.75, storm: 0.15, convect: 0.1, snow: 0.45 },
+};
+// Targets per weather phase. 'lift' is frontal lift in metres; tOff is the air-mass offset in °C.
+const WEATHER = {
+  clear:    { name: 'Clear',          rh: 0.55, lift: 0,    wind: 5,   storm: 0,    tOff: 1,   dur: [70, 150] },
+  building: { name: 'Building cloud', rh: 0.76, lift: 2800, wind: 8,   storm: 0.05, tOff: 0,   dur: [30, 45] },
+  overcast: { name: 'Overcast',       rh: 0.83, lift: 3000, wind: 7,   storm: 0,    tOff: -1,  dur: [40, 80] },
+  rain:     { name: 'Rain',           rh: 0.93, lift: 5200, wind: 11,  storm: 0.25, tOff: -2,  dur: [45, 90] },
+  storm:    { name: 'Thunderstorm',   rh: 0.97, lift: 8500, wind: 21,  storm: 1,    tOff: -4,  dur: [40, 75] },
+  clearing: { name: 'Clearing',       rh: 0.68, lift: 900,  wind: 9,   storm: 0,    tOff: -1,  dur: [30, 50] },
+  snow:     { name: 'Snow',           rh: 0.9,  lift: 4600, wind: 9,   storm: 0.1,  tOff: -16, dur: [60, 120] },
+  fog:      { name: 'Fog',            rh: 0.995,lift: 0,    wind: 1.2, storm: 0,    tOff: -3,  dur: [50, 90] },
+};
+const magnusDew = (T, RH) => { const b = 17.62, c = 243.12, g = Math.log(Math.max(RH, 0.01)) + b * T / (c + T); return c * g / (b - g); };
+const magnusRH = (T, Td) => { const b = 17.62, c = 243.12; return Math.exp(b * Td / (c + Td) - b * T / (c + T)); };
+
+const Atmo = {
+  reset(seedStr) {
+    this.rng = new RNG(hashString('weather|' + seedStr));
+    this.hour = 9.5; this.seasonKey = 'summer';
+    const s = SEASONS[this.seasonKey];
+    this.base = s.base; this.seaT = s.sea; this.decl = s.decl;
+    this.phase = 'clear'; this.phaseT = 0; this.phaseDur = 40; this.auto = true;
+    this.rh = 0.6; this.rhMean = 0.6; this.fog = 0; this.lift = 0; this.windSpeed = 5; this.windDir = (250 + 180) * Math.PI / 180; // direction wind blows toward
+    this.storm = 0; this.tOff = 1; this.userT = 0; this.userRH = 0; this.userWind = 1; this.userDirFrom = 250;
+    this.pressure = 1016; this.waveAmp = 1; this.frontS = -CLOUD_DOMAIN * 0.8; this.frontHalf = 9000;
+    this.cloudOff = new THREE.Vector2(); this.gustOff = new THREE.Vector2();
+    this.timeSpeed = 1; this.landT = 18; this.cover = 0; this.hail = 0; this.longStorm = 0; this.veer = 0;
+    this.T0 = this.base; this.dew = 10; this.lcl = 1000; this.seaFog = 0; this.convLift = 0; this.breeze = 0;
+    this.precipView = 0; this.precipIsland = 0; this.precipMax = 0; this.coverObs = undefined; this.seed = seedStr; this.simDt = 0; this.totalHours = 0;
+  },
+  setSeason(k) { this.seasonKey = k; },
+  setWeather(k) {
+    if (k === 'auto') { this.auto = true; return; }
+    this.auto = false; this.enter(k);
+  },
+  enter(k) {
+    if ((k === 'building' || k === 'rain' || k === 'storm' || k === 'snow' || k === 'overcast') && this.lift < 600) this.frontS = -CLOUD_DOMAIN * 0.75;
+    this.phase = k; this.phaseT = 0;
+    const d = WEATHER[k].dur; this.phaseDur = this.rng.range(d[0], d[1]);
+  },
+  nextPhase() {
+    const s = SEASONS[this.seasonKey], r = this.rng.next(), p = this.phase;
+    if (this.longStorm > 0) return 'storm';
+    if (p === 'clear') {
+      if (this.hour > 2.5 && this.hour < 7.5 && this.rh > 0.6 && r < 0.35) return 'fog';
+      return r < s.front ? 'building' : 'clear';
+    }
+    if (p === 'fog') return 'clear';
+    if (p === 'building') return r < 0.68 ? (this.rng.next() < s.snow ? 'snow' : 'rain') : 'overcast';
+    if (p === 'overcast') return r < 0.5 ? 'rain' : 'clearing';
+    if (p === 'rain') return r < s.storm ? 'storm' : 'clearing';
+    if (p === 'storm') return r < 0.35 ? 'rain' : 'clearing';
+    if (p === 'snow') return 'clearing';
+    return 'clear';
+  },
+  sunVector(out) {
+    const lat = CONFIG.LATITUDE * Math.PI / 180, dec = this.decl * Math.PI / 180, H = (this.hour - 12) * 15 * Math.PI / 180;
+    const E = -Math.cos(dec) * Math.sin(H);
+    const Nn = Math.sin(dec) * Math.cos(lat) - Math.cos(dec) * Math.cos(H) * Math.sin(lat);
+    const Up = Math.sin(dec) * Math.sin(lat) + Math.cos(dec) * Math.cos(H) * Math.cos(lat);
+    return out.set(E, Up, -Nn).normalize();
+  },
+  update(dtReal) {
+    const sim = dtReal * this.timeSpeed * 86400 / CONFIG.DAY_SECONDS; // simulated seconds this frame
+    this.simDt = sim;
+    this.hour = (this.hour + sim / 3600) % 24;
+    this.longStorm = Math.max(0, this.longStorm - dtReal);
+    // phases advance in real time so transitions always last tens of seconds
+    this.phaseT += dtReal;
+    if (this.auto && this.phaseT > this.phaseDur) this.enter(this.nextPhase());
+    if (this.longStorm > 0 && this.phase !== 'storm') this.enter('storm');
+    const s = SEASONS[this.seasonKey], W = WEATHER[this.phase];
+    this.base = approach(this.base, s.base, dtReal, 20); this.seaT = approach(this.seaT, s.sea, dtReal, 40); this.decl = approach(this.decl, s.decl, dtReal, 20);
+    // smooth approach of every state variable
+    this.rhMean = approach(this.rhMean, clamp(W.rh + this.userRH / 100, 0.08, 0.995), dtReal, 14);
+    this.lift = approach(this.lift, W.lift, dtReal, 12);
+    this.storm = approach(this.storm, W.storm, dtReal, 9);
+    this.tOff = approach(this.tOff, W.tOff, dtReal, 22);
+    this.userTs = approach(this.userTs ?? 0, this.userT, dtReal, 6);
+    const gust = 0.5 + 0.5 * Math.sin(this.phaseT * 0.37) * Math.sin(this.phaseT * 0.11 + 1.3);
+    const windTarget = W.wind * this.userWind * (1 + 0.15 * gust);
+    this.windSpeed = approach(this.windSpeed, windTarget, dtReal, 8);
+    this.veer = approach(this.veer, (this.phase === 'storm' ? 0.6 : this.phase === 'clearing' ? 0.35 : 0) + 0.15 * Math.sin(this.phaseT * 0.05), dtReal, 25);
+    const dirTarget = (this.userDirFrom + 180) * Math.PI / 180 + this.veer;
+    this.windDir = approachAngle(this.windDir, dirTarget, dtReal, 7);
+    this.pressure = approach(this.pressure, 1021 - 7 * this.lift / 8500 - 20 * this.storm + (this.phase === 'clear' ? 3 : 0), dtReal, 18);
+
+    // sun, day heating, diurnal temperature
+    const sun = this.sunVector(U.uSunDir.value);
+    const elev = sun.y; this.elevNow = elev;
+    // the air mass keeps its moisture (dew point) through the day, so relative humidity
+    // rises as the air cools at night and falls as the sun warms it
+    const clearSky = 1 - Math.max(this.cover * 0.75, this.fog * 0.85);
+    const diurnal = 5.5 * clearSky * Math.cos((this.hour - 15) / 24 * Math.PI * 2);
+    const Tmean = this.base + this.tOff + this.userTs;
+    this.T0 = Tmean + diurnal;
+    this.dew = Math.min(this.T0, magnusDew(Tmean, this.rhMean));
+    this.rh = magnusRH(this.T0, this.dew);
+    // fog deck: forms where calm air sits at its dew point (dawn, or warm humid air over a cold
+    // sea), shades the sun while it lasts, and burns off once the sun can warm the air past it
+    const spread = this.T0 - this.dew;
+    const form = smoothstep(1.6, 0.25, spread) * smoothstep(6, 1.5, this.windSpeed) * (elev < 0.25 || this.fog > 0.5 ? 1 : 0.3);
+    const burn = Math.max(0, elev) * (1 - 0.8 * this.fog) * smoothstep(0.4, 2.5, spread) + smoothstep(5, 9, this.windSpeed);
+    this.fog = clamp(this.fog + dtReal * (form * 0.08 * (1 - this.fog) - burn * 0.06 * this.fog), 0, 1);
+    this.lcl = Math.max(120, 125 * (this.T0 - this.dew));
+    // land surface heats by day and cools by night; the difference to the sea drives the breeze
+    const sunHeat = Math.max(0, elev) * clearSky;
+    this.landT = approach(this.landT, this.T0 + 7 * sunHeat - 3.5 * (elev < 0 ? clearSky : 0), sim, 3600 * 1.5);
+    this.breeze = clamp((this.landT - this.seaT) * 0.55, -3.5, 4.5) * smoothstep(9, 2, this.windSpeed) + clamp((this.landT - this.seaT) * 0.2, -1, 1.5);
+    this.convLift = s.convect * Math.max(0, this.landT - this.T0 - 1.5) * 380 * smoothstep(0.55, 0.85, this.rh + 0.15);
+    this.seaFog = smoothstep(0.84, 0.97, this.rh) * smoothstep(0.5, 3, this.T0 - this.seaT) * smoothstep(8, 3, this.windSpeed);
+    const coverModel = smoothstep(-400, 1800, Math.max(this.lift, this.convLift * 0.6, 900) - this.lcl) * (this.lift > 200 ? 1 : 0.35);
+    this.cover = approach(this.cover, this.coverObs ?? coverModel, dtReal, 4);
+    // hail comes in short bursts inside the strongest (convective) storms
+    const burst = smoothstep(0.55, 0.85, 0.5 + 0.5 * Math.sin(this.phaseT * 0.21) * Math.sin(this.phaseT * 0.077 + 1));
+    this.hail = smoothstep(0.85, 1, this.storm) * burst * (0.4 + 0.6 * SEASONS[this.seasonKey].convect);
+    this.waveAmp = approach(this.waveAmp, 0.6 + this.windSpeed * 0.42 + this.storm * 4, dtReal, 18);
+    // the front moves downwind; during clearing it carries the cloud away
+    const fTarget = this.phase === 'clearing' || this.phase === 'clear' || this.phase === 'fog' ? CLOUD_DOMAIN * 1.4 : 0;
+    this.frontS = approach(this.frontS, fTarget, dtReal, this.phase === 'clearing' ? 22 : 14);
+    // advected noise offsets (integrated so changing wind never makes clouds jump)
+    const wv = new THREE.Vector2(Math.cos(this.windDir), Math.sin(this.windDir)).multiplyScalar(this.windSpeed);
+    this.cloudOff.addScaledVector(wv, dtReal * 22);
+    this.gustOff.addScaledVector(wv, dtReal * 9);
+    this.windVec = wv;
+    this.writeUniforms(elev);
+  },
+  tempAt(z) { return this.T0 - CONFIG.LAPSE * z; },
+  weatherName() {
+    const p = this.phase;
+    if (p === 'clear' && this.cover > 0.45) return 'Fair, cloud on the peak';
+    if (p === 'clear' && this.convLift > this.lcl) return 'Fair, afternoon cumulus';
+    if ((p === 'rain' || p === 'storm' || p === 'snow' || p === 'building') && this.T0 < 2) return p === 'storm' ? 'Blizzard' : 'Snow';
+    if (p === 'storm' && this.hail > 0.2) return 'Thunderstorm with hail';
+    if (p === 'clear' && this.seaFog > 0.3) return 'Sea fog';
+    if (p !== 'fog' && this.fog > 0.4) return this.elevNow > 0.05 ? 'Morning fog' : 'Valley fog';
+    return WEATHER[p].name;
+  },
+  writeUniforms(elev) {
+    U.uTAir.value = this.T0; U.uDew.value = this.dew; U.uRH.value = this.rh;
+    U.uWind.value.copy(this.windVec); U.uWindSpeed.value = this.windSpeed;
+    U.uStorm.value = this.storm; U.uCover.value = this.cover; U.uCloudBase.value = Math.max(this.lcl, 700);
+    U.uWaveAmp.value = this.waveAmp; U.uSeaFog.value = this.seaFog;
+    U.uCloudOff.value.copy(this.cloudOff); U.uGustOff.value.copy(this.gustOff);
+    const tideT = (this.totalHours = (this.totalHours ?? 0) + this.simDt / 3600);
+    U.uSeaLevel.value = CONFIG.TIDE_AMP * Math.sin(tideT / CONFIG.TIDE_PERIOD_H * Math.PI * 2);
+    SIMU.uSunHeat.value = Math.max(0, elev) * (1 - this.cover * 0.7) * (1 - 0.8 * this.fog);
+    SIMU.uNightCool.value = (elev < 0.02 ? 1 : 0) * (1 - this.cover * 0.8) * smoothstep(7, 1, this.windSpeed);
+    SIMU.uHail.value = this.hail;
+    SIMU.uWaveEnergy.value = smoothstep(9, 24, this.windSpeed) * (0.4 + 0.6 * this.storm);
+    SIMU.uCalm.value = smoothstep(9, 4, this.windSpeed) * (1 - this.storm);
+    SIMU.uFrostCycle.value = smoothstep(4, 0, Math.abs(this.T0 - CONFIG.LAPSE * 1200));
+    SIMU.uRunup.value = 1 + this.waveAmp * 0.5;
+    WINDU.uBreeze.value = this.breeze;
+    WINDU.uGust.value = clamp(0.25 + this.windSpeed / 30 + this.storm * 0.6, 0, 1.3);
+    WINDU.uFrontS.value = this.frontS; WINDU.uFrontHalf.value = this.frontHalf;
+    WINDU.uStormEdge.value = this.storm;
+    WINDU.uFrontLift.value = this.lift; WINDU.uConvLift.value = this.convLift; WINDU.uLCL.value = this.lcl;
+  },
+};
+
+// ---- wind field (GPU) ---------------------------------------------------------------
+// Speeds up over ridges and with height, slows and swirls in the lee of the peak, bends
+// around the mountain, adds the sea/land breeze, noise-driven gust bursts that travel
+// with the wind, and the cold downdraught at a storm's leading edge.
+const WINDU = {
+  uBreeze: { value: 0 }, uGust: { value: 0.3 }, uFrontS: { value: 0 }, uFrontHalf: { value: 9000 }, uStormEdge: { value: 0 },
+  uFrontLift: { value: 0 }, uConvLift: { value: 0 }, uLCL: { value: 1000 }, uFieldRes: { value: 128 },
+};
+const WIND_FS = /* glsl */`
+uniform float uBreeze, uGust, uFrontS, uFrontHalf, uStormEdge, uFieldRes;
+uniform vec2 uGustOff;
+float gh(vec2 wp){ vec4 g = texture(tGround, wp / uDomain + 0.5); return max(g.r + g.g, 0.); }
+void main(){
+  vec2 uv = gl_FragCoord.xy / uFieldRes;
+  vec2 p = (uv - 0.5) * uDomain;
+  float spd = length(uWind); vec2 dir = spd > 0.01 ? uWind / spd : vec2(1., 0.);
+  float h = gh(p);
+  float ring = 0.;
+  for (int k = 0; k < 8; k++) { float a = float(k) * 0.785398; ring += gh(p + vec2(cos(a), sin(a)) * 320.); }
+  ring /= 8.;
+  float expo = clamp((h - ring) / 140., -1., 1.);
+  float shelter = 0.;
+  for (int k = 1; k <= 8; k++) { float d = float(k) * 200.; float hu = gh(p - dir * d); shelter = max(shelter, (hu - h - d * 0.1) / (d * 0.55 + 250.)); }
+  shelter = clamp(shelter, 0., 1.);
+  float alt = clamp(h / 2000., 0., 1.);
+  vec2 w = uWind * (1. + 0.6 * alt + 0.7 * max(expo, 0.)) * (1. - 0.78 * shelter);
+  vec2 gr = vec2(gh(p + vec2(60., 0.)) - gh(p - vec2(60., 0.)), gh(p + vec2(0., 60.)) - gh(p - vec2(0., 60.))) / 120.;
+  float gl = length(gr);
+  if (gl > 1e-4) { vec2 n = gr / gl; float up = dot(w, n); if (up > 0.) w -= n * up * 0.5 * min(gl * 1.5, 1.); }
+  float ang = (fbm3(p * 0.0011 + vec2(uTime * 0.04, -uTime * 0.03)) - 0.5) * 9.0;
+  w += vec2(cos(ang), sin(ang)) * spd * 0.45 * shelter;
+  vec2 c = p; float r = length(c) / (uDomain * 0.31);
+  w += -normalize(c + 1e-3) * uBreeze * smoothstep(1.55, 0.95, r) * smoothstep(0.15, 0.7, r) * (1. - alt);
+  float g = fbm((p - uGustOff) * 0.00085);
+  g = smoothstep(0.5, 0.78, g);
+  float gust = 1. + uGust * g * 1.5;
+  float s = dot(p, dir) - uFrontS - uFrontHalf;
+  float edge = exp(-s * s / (2200. * 2200.)) * uStormEdge;
+  w = w * gust + dir * edge * 12.;
+  gl_FragColor = vec4(w, gust + edge, shelter - max(expo, 0.));
+}`;
+
+// ---- cloud & precipitation field (GPU) ----------------------------------------------
+// Air is lifted by terrain (only with wind, and not in the sheltered lee), by the front,
+// or by daytime convection over warm land. Where the lifted air rises above the LCL it
+// condenses; deeper cloud precipitates. Output: (density, precipitation, base m, top m).
+const CLOUD_FS = /* glsl */`
+uniform float uFrontS, uFrontHalf, uFrontLift, uConvLift, uLCL, uFieldRes;
+uniform vec2 uCloudOff;
+float gh(vec2 wp){ vec4 g = texture(tGround, wp / uDomain + 0.5); return max(g.r + g.g, 0.); }
+void main(){
+  vec2 uv = gl_FragCoord.xy / uFieldRes;
+  vec2 p = (uv - 0.5) * uCloudDomain;
+  float spd = length(uWind); vec2 dir = spd > 0.01 ? uWind / spd : vec2(1., 0.);
+  vec4 wf = texture(tWind, p / uDomain + 0.5);
+  bool inside = all(lessThan(abs(p), vec2(uDomain * 0.5)));
+  float lee = inside ? clamp(wf.a, 0., 1.) : 0.;
+  float h = gh(p);
+  float hu = 0.;
+  for (int k = 1; k <= 4; k++) hu = max(hu, gh(p - dir * float(k) * 260.) * (1. - float(k) * 0.12));
+  vec2 q = p - uCloudOff;
+  float n = fbm(q * 0.00026);
+  float n2 = fbm3(q * 0.0009 + 3.7);
+  float oro = max(h, hu) * (1. - 0.92 * lee) * smoothstep(1., 6., spd) * (0.8 + 0.45 * n2);
+  float s = dot(p, dir) - uFrontS;
+  float band = 1. - smoothstep(uFrontHalf - 3000., uFrontHalf + 2500., abs(s));
+  float front = uFrontLift * band * (0.55 + 0.7 * n);
+  float conv = uConvLift * smoothstep(20., 500., h) * (0.3 + 1.1 * n2);
+  float lift = max(max(oro, front), conv) + (n - 0.5) * 700.;
+  float depth = lift - uLCL;
+  float cover = smoothstep(-500., 900., depth + (n - 0.5) * 1800. + (n2 - 0.5) * 500.);
+  float dens = cover * smoothstep(-200., 300., depth);
+  float precip = smoothstep(1100., 4200., depth) * dens * smoothstep(0.55, 0.8, uRH);
+  float base = max(uLCL, 220.) + (n2 - 0.5) * 160.;
+  float top = base + clamp(depth, 0., 10000.) * (0.45 + 0.55 * n) + 150.;
+  gl_FragColor = vec4(dens, precip, base, top);
+}`;
+
+/* =====================================================================================
+   WATER — rain, meltwater, infiltration, evaporation and the sea feed a pipe-model
+   shallow-water simulation (Mei, Decaudin & Hu 2007): each cell keeps outflow flux to its
+   four neighbours, accelerated by the difference in water-surface height and scaled so a
+   cell never sends more water than it holds. Suspended sediment is carried along the same
+   fluxes (upwind), so water and sediment are both conserved; the only sources and sinks
+   are rain, snowmelt, evaporation, infiltration and the sea (cells below sea level are
+   relaxed toward the tide). Puddles, streams and the river all emerge from this.
+   ===================================================================================== */
+const SNOW_SWE = '0.35';   // water equivalent of melted snow depth
+SIMU.uSeaT = { value: 18 }; SIMU.uSoilMul = { value: 3 };
+const SHARED_SIM_FN = /* glsl */`
+float sandness(float h, float sed){ return (1. - smoothstep(12., 26., h - uSeaLevel)) * smoothstep(0.05, 0.4, sed); }
+// metres of snow depth melted this step — used by both the snow pass and the water pass,
+// so the meltwater added to the river equals the snow removed.
+float snowMelt(vec4 s, vec4 cl){
+  float t = s.b;
+  float rate = max(t, 0.) * 2.2e-6 + uSunHeat * (1. - cl.r * 0.8) * 1.6e-6 * step(-2.5, t) + cl.g * smoothstep(0.5, 1.5, t) * 2.5e-6;
+  return min(s.g, rate * uDt);
+}`;
+
+const SOURCES_FS = SHARED_SIM_FN + /* glsl */`
+void main(){
+  ivec2 c = ivec2(gl_FragCoord.xy);
+  vec4 g = Gr(c), s = Sf(c), so = Sl(c);
+  vec4 cl = cloudAt(cellWorld(c));
+  float hg = groundOf(g), d = g.b, temp = s.b;
+  d += cl.g * smoothstep(0.5, 1.5, temp) * uRainRate * uDt;          // rain (snow is handled by the snow pass)
+  d += snowMelt(s, cl) * ${SNOW_SWE};                                  // meltwater
+  if (hg < uSeaLevel || isEdge(c)) {
+    d += (max(uSeaLevel - hg, 0.) - d) * 0.3;                          // the sea adds / removes water
+  } else {
+    float sand = sandness(hg, g.g), rockF = 1. - smoothstep(0.03, 0.5, g.g);
+    float infil = mix(mix(1.2e-5, 1.5e-4, sand), 1.0e-6, rockF) * (1. - 0.85 * so.r * so.r) * (temp < -0.5 ? 0.1 : 1.);
+    float evap = (4e-7 + max(temp, 0.) * 6e-8) * (1. + 0.08 * uWindSpeed) * (1. + 1.5 * uSunHeat) * (so.b > 0.5 ? 0.2 : 1.);
+    d -= min(d, (infil + evap) * uDt);
+  }
+  gl_FragColor = vec4(g.r, g.g, clamp(fixf(d), 0., 400.), g.a);
+}`;
+
+const FLUX_FS = /* glsl */`
+void main(){
+  ivec2 c = ivec2(gl_FragCoord.xy); int M = int(uGrid) - 1;
+  vec4 g = Gr(c); float H = groundOf(g) + g.b;
+  vec4 gl = Gr(c + ivec2(-1, 0)), gr = Gr(c + ivec2(1, 0)), gb = Gr(c + ivec2(0, -1)), gt = Gr(c + ivec2(0, 1));
+  vec4 dH = vec4(H - groundOf(gl) - gl.b, H - groundOf(gr) - gr.b, H - groundOf(gb) - gb.b, H - groundOf(gt) - gt.b);
+  vec4 f = max(vec4(0.), Fx(c) * 0.996 + uDt * 9.81 / uCell * dH);
+  if (c.x == 0) f.x = 0.; if (c.x == M) f.y = 0.; if (c.y == 0) f.z = 0.; if (c.y == M) f.w = 0.;
+  float outV = (f.x + f.y + f.z + f.w) * uDt;
+  if (outV > g.b) f *= g.b / max(outV, 1e-9);
+  gl_FragColor = vec4(fixf(f.x), fixf(f.y), fixf(f.z), fixf(f.w));
+}`;
+
+// Inflow helpers shared by the water and erosion passes (zero across the domain edge).
+const INFLOW_GLSL = /* glsl */`
+void neighbourFlux(ivec2 c, out vec4 fl, out vec4 fr, out vec4 fb, out vec4 ft){
+  int M = int(uGrid) - 1;
+  fl = c.x > 0 ? Fx(c + ivec2(-1, 0)) : vec4(0.); fr = c.x < M ? Fx(c + ivec2(1, 0)) : vec4(0.);
+  fb = c.y > 0 ? Fx(c + ivec2(0, -1)) : vec4(0.); ft = c.y < M ? Fx(c + ivec2(0, 1)) : vec4(0.);
+}
+float conc(vec4 g){ return g.a / max(g.b, 1e-4); }`;
+
+const WATER_FS = INFLOW_GLSL + /* glsl */`
+void main(){
+  ivec2 c = ivec2(gl_FragCoord.xy);
+  vec4 g = Gr(c), f = Fx(c), fl, fr, fb, ft;
+  neighbourFlux(c, fl, fr, fb, ft);
+  float fin = fl.y + fr.x + fb.w + ft.z, fout = f.x + f.y + f.z + f.w;
+  float d = max(0., g.b + uDt * (fin - fout));
+  float sIn = uDt * (fl.y * conc(Gr(c + ivec2(-1, 0))) + fr.x * conc(Gr(c + ivec2(1, 0))) + fb.w * conc(Gr(c + ivec2(0, -1))) + ft.z * conc(Gr(c + ivec2(0, 1))));
+  float sOut = uDt * fout * conc(g);
+  float s = max(0., g.a + sIn - sOut);
+  gl_FragColor = vec4(g.r, g.g, clamp(fixf(d), 0., 400.), clamp(fixf(s), 0., 50.));
+}`;
+
+// Soil moisture, greenness, ice on puddles and night frost.
+const SOIL_FS = /* glsl */`
+uniform float uSoilMul;
+void main(){
+  ivec2 c = ivec2(gl_FragCoord.xy);
+  vec4 g = Gr(c), s = Sf(c), so = Sl(c);
+  vec4 cl = cloudAt(cellWorld(c));
+  float temp = s.b, hg = groundOf(g), dt = uDt * uSoilMul, at = uAtmoDt * uSoilMul;
+  float wetIn = (g.b > 0.003 ? 1. : 0.) + cl.g * smoothstep(0.5, 1.5, temp) + (s.g > 0.01 && temp > 0. ? 0.3 : 0.);
+  float m = so.r + dt * 6e-5 * wetIn * (1. - so.r);
+  m -= at * m * (0.5 + max(temp, 0.) * 0.05 + uSunHeat) / (86400. * 1.5);
+  float gTarget = smoothstep(0.12, 0.55, m) * smoothstep(-2., 6., temp);
+  float green = mix(so.g, gTarget, 1. - exp(-at / (gTarget > so.g ? 21600. : 172800.)));
+  float ice = so.b;
+  if (g.b > 0.003 && temp < -0.3 && hg > uSeaLevel) ice += dt * 0.004; else if (temp > 0.4 || g.b < 0.002) ice -= dt * 0.006;
+  float clearSky = 1. - cl.r;
+  float frost = so.a;
+  if (temp < 0.8 && uSunHeat < 0.01 && uRH > 0.45) frost += at / 3600. * clearSky * smoothstep(0.8, -1.5, temp);
+  else if (temp > 2. || uSunHeat > 0.05) frost -= at / 900.;
+  if (s.g > 0.05) frost = 0.;
+  gl_FragColor = vec4(clamp(fixf(m), 0., 1.), clamp(fixf(green), 0., 1.), clamp(ice, 0., 1.), clamp(frost, 0., 1.));
+}`;
+
+/* =====================================================================================
+   EROSION — hydraulic erosion (capacity ∝ speed × slope; erode where water is under
+   capacity, deposit where it slows), thermal erosion (loose material slides wherever a
+   slope exceeds its angle of repose: ~34° sand, ~40° soil; over-steep rock weathers into
+   scree, faster around freezing), and coastal erosion (storm waves attack the waterline
+   and flatten the beach seaward; calm swash moves sand back up). Exchanges between cells
+   are antisymmetric pairwise transfers, so material is conserved. All on the GPU, several
+   steps per frame, with a speed control and a pause.
+   ===================================================================================== */
+const EROSION_FS = INFLOW_GLSL + /* glsl */`
+void main(){
+  ivec2 c = ivec2(gl_FragCoord.xy);
+  vec4 g = Gr(c); float rock = g.r, sed = g.g, d = g.b, s = g.a;
+  vec4 f = Fx(c), fl, fr, fb, ft;
+  neighbourFlux(c, fl, fr, fb, ft);
+  vec2 v = vec2((fl.y - f.x) + (f.y - fr.x), (fb.w - f.z) + (f.w - ft.z)) * 0.5 * uCell / max(d, 0.02);
+  float sp = min(length(v), 10.);
+  vec4 gl = Gr(c + ivec2(-1, 0)), gr = Gr(c + ivec2(1, 0)), gb = Gr(c + ivec2(0, -1)), gt = Gr(c + ivec2(0, 1));
+  vec2 grad = vec2(groundOf(gr) - groundOf(gl), groundOf(gt) - groundOf(gb)) / (2. * uCell);
+  float tanA = length(grad), sinA = tanA / sqrt(1. + tanA * tanA);
+  float hg = rock + sed;
+  bool sea = hg < uSeaLevel - 0.5;
+  float cap = 0.08 * max(sinA, 0.03) * sp * smoothstep(0.002, 0.06, d) * (sea ? 0.2 : 1.);
+  if (cap > s) {
+    float amt = 0.006 * (cap - s) * uDt * uErode;
+    float a1 = min(amt, sed); sed -= a1;
+    float a2 = min((amt - a1) * 0.08, 2.); rock -= a2;
+    s += a1 + a2;
+  } else {
+    float amt = min(s, 0.02 * (s - cap) * uDt * max(uErode, 0.25));
+    s -= amt; sed += amt;
+  }
+  if (d < 0.001) { sed += s; s = 0.; }
+  vec2 gR = vec2(gr.r - gl.r, gt.r - gb.r) / (2. * uCell);
+  float tanR = length(gR);
+  if (tanR > 1.25) { float cv = 3e-5 * (tanR - 1.25) * uDt * uErode * (1. + 3. * uFrostCycle); rock -= cv; sed += cv; }
+  float zone = smoothstep(uSeaLevel - 5., uSeaLevel - 0.5, hg) * (1. - smoothstep(uSeaLevel + uRunup, uSeaLevel + uRunup + 3., hg));
+  float wave = uWaveEnergy * zone * 4e-5 * uDt * uErode; rock -= wave; sed += wave;
+  float beach = smoothstep(uSeaLevel - 1., uSeaLevel + 0.5, hg) * (1. - smoothstep(uSeaLevel + 2., uSeaLevel + 4., hg));
+  sed += uCalm * beach * 1.5e-6 * uDt * uErode;                         // calm seas bring sand ashore
+  gl_FragColor = vec4(clamp(fixf(rock), -600., 4000.), clamp(fixf(sed), 0., 200.), d, clamp(fixf(s), 0., 50.));
+}`;
+
+const THERMAL_FS = /* glsl */`
+float tanRepose(float h){ return mix(0.67, 0.84, smoothstep(10., 30., h - uSeaLevel)); }   // sand 34°, soil 40°
+float exch(vec4 gi, vec4 gj){
+  float hi = groundOf(gi), hj = groundOf(gj), dh = hi - hj;
+  float hd = dh > 0. ? hi : hj, sd = dh > 0. ? gi.g : gj.g, sl = dh > 0. ? gj.g : gi.g;
+  float surf = smoothstep(uSeaLevel - 8., uSeaLevel, hd) * (1. - smoothstep(uSeaLevel + uRunup, uSeaLevel + uRunup + 2., hd));
+  float talus = mix(tanRepose(hd), 0.05, clamp(uWaveEnergy * surf, 0., 0.9)) * uCell;
+  float ex = abs(dh) - talus;
+  float amt = ex > 0. ? min(ex * 0.1, sd * 0.2) : 0.;
+  float lo = min(hi, hj), hh = max(hi, hj);
+  float onshore = (lo < uSeaLevel && lo > uSeaLevel - 6. && hh < uSeaLevel + 2.5 && abs(dh) < 0.12 * uCell) ? uCalm * 4e-6 * uDt * min(sl, 1.) : 0.;
+  return sign(dh) * (amt * clamp(uErode, 0., 1.) - onshore * uErode);
+}
+void main(){
+  ivec2 c = ivec2(gl_FragCoord.xy);
+  vec4 g = Gr(c);
+  float out_ = exch(g, Gr(c + ivec2(-1, 0))) + exch(g, Gr(c + ivec2(1, 0))) + exch(g, Gr(c + ivec2(0, -1))) + exch(g, Gr(c + ivec2(0, 1)));
+  gl_FragColor = vec4(g.r, clamp(fixf(g.g - out_), 0., 200.), g.b, g.a);
+}`;
+
+/* =====================================================================================
+   SNOW — the surface pass: snowfall below ~1 °C (more on up-facing and lee slopes), hail,
+   melt (shared with the water pass), snow sliding off slopes steeper than ~37°, wind
+   drifting from exposed ridges into hollows, the near-ground air temperature (lapse rate,
+   sun heating, night cooling with cold air pooling in hollows), surface wetness that
+   dries from its edges inward, and vegetation density that follows soil and moisture.
+   ===================================================================================== */
+const SURFACE_FS = SHARED_SIM_FN + /* glsl */`
+uniform vec3 uSunDir; uniform float uSeaT, uFrontS, uFrontHalf, uStormEdge;
+const ivec2 OFF[4] = ivec2[4](ivec2(-1, 0), ivec2(1, 0), ivec2(0, -1), ivec2(0, 1));
+float snowEx(vec4 gi, vec4 si, vec4 gj, vec4 sj){
+  float hi = groundOf(gi) + si.g, hj = groundOf(gj) + sj.g, dh = hi - hj;
+  float donor = dh > 0. ? si.g : sj.g;
+  float ex = abs(dh) - 0.75 * uCell;
+  return sign(dh) * (ex > 0. ? min(ex * 0.1, donor * 0.2) : 0.);
+}
+float mobility(vec4 si, vec4 wi){
+  float sp = length(wi.xy);
+  return si.g * smoothstep(7., 18., sp) * 0.003 * uDt * (si.b < 0. ? 1. : 0.25) * clamp(0.5 - wi.a * 1.2, 0.05, 1.5);
+}
+float dirShare(vec2 w, vec2 o){ vec2 a = abs(w); float t = a.x + a.y; return t > 1e-4 ? max(dot(w, o), 0.) / t : 0.; }
+void main(){
+  ivec2 c = ivec2(gl_FragCoord.xy);
+  vec4 g = Gr(c), s = Sf(c), so = Sl(c);
+  vec2 wp = cellWorld(c);
+  vec4 cl = cloudAt(wp), wf = windAt(wp);
+  float hg = groundOf(g);
+  vec4 gn[4]; vec4 sn[4]; vec4 wn[4];
+  for (int k = 0; k < 4; k++) { gn[k] = Gr(c + OFF[k]); sn[k] = Sf(c + OFF[k]); wn[k] = windAt(cellWorld(c + OFF[k])); }
+  vec3 Nr = normalize(vec3(groundOf(gn[0]) - groundOf(gn[1]), 2. * uCell, groundOf(gn[2]) - groundOf(gn[3])));
+  // near-ground air temperature
+  float ring = (groundOf(Gr(c + ivec2(-3, 0))) + groundOf(Gr(c + ivec2(3, 0))) + groundOf(Gr(c + ivec2(0, -3))) + groundOf(Gr(c + ivec2(0, 3)))) * 0.25;
+  float hollow = clamp((ring - hg) / 30., 0., 1.5);
+  float sunFace = max(dot(Nr, uSunDir), 0.);
+  float tT = uTAir - ${CONFIG.LAPSE} * max(hg, 0.) + 6. * uSunHeat * (0.35 + 0.65 * sunFace) * (1. - cl.r * 0.8) * (1. - 0.4 * s.r) - 4.5 * uNightCool * (0.6 + hollow);
+  float se = dot(wp, normalize(uWind + 1e-4)) - uFrontS - uFrontHalf;
+  tT -= 4. * uStormEdge * exp(-se * se / (2500. * 2500.));          // cold downdraught at a storm's leading edge
+  if (hg < uSeaLevel) tT = mix(uSeaT, uTAir, 0.3);
+  float temp = mix(s.b, tT, 1. - exp(-uAtmoDt / 1500.));
+  // snowfall and hail
+  float snowing = 1. - smoothstep(0.5, 1.5, temp);
+  float up = clamp(Nr.y, 0., 1.); up = up * up * up;
+  vec2 wd = normalize(uWind + 1e-4);
+  float lee = clamp(dot(Nr.xz, wd) * 4., 0., 1.);
+  float fall = cl.g * snowing * uSnowRate * uDt * up * (0.75 + 0.8 * lee) + uHail * cl.g * uDt * 2.5e-5 * up;
+  float snow = s.g + fall - snowMelt(s, cl);
+  for (int k = 0; k < 4; k++) snow -= snowEx(g, s, gn[k], sn[k]);           // sliding
+  snow -= mobility(s, wf);                                                    // drifting: send all mobile snow downwind
+  for (int k = 0; k < 4; k++) snow += mobility(sn[k], wn[k]) * dirShare(wn[k].xy, -vec2(OFF[k]));
+  if (hg < uSeaLevel) snow = 0.;
+  // wetness: soaked by water, rain or melt; dries from the edges inward
+  float rainHere = cl.g * smoothstep(0.5, 1.5, temp);
+  float wet = s.r;
+  bool src = g.b > 0.004 || rainHere > 0.04 || hg < uSeaLevel + 0.3 || (s.g > 0.01 && temp > 0.);
+  if (src) wet = min(1., wet + uDt * (0.01 + rainHere * 0.06 + (g.b > 0.004 ? 0.05 : 0.)));
+  else {
+    float nmin = min(min(sn[0].r, sn[1].r), min(sn[2].r, sn[3].r));
+    float rate = 3.5e-5 * (0.4 + max(temp, 0.) * 0.04 + uWindSpeed * 0.03 + uSunHeat * 0.9);
+    wet = max(0., wet - uDt * rate * (0.3 + 9. * max(wet - nmin, 0.)));
+  }
+  // vegetation density
+  float tanS = length(Nr.xz) / max(Nr.y, 0.05);
+  float sedF = smoothstep(0.05, 0.8, g.g);
+  float vT = sedF * (1. - smoothstep(0.6, 1.0, tanS)) * (1. - smoothstep(1500., 1900., hg)) * smoothstep(uSeaLevel + 7., uSeaLevel + 20., hg)
+           * (1. - smoothstep(0.08, 0.5, g.b)) * (0.35 + 0.65 * sqrt(so.r));
+  float tau = vT < s.a ? (sedF < s.a * 0.5 ? 1500. : 9000.) : 50000.;
+  float veg = mix(s.a, vT, 1. - exp(-uAtmoDt / tau));
+  gl_FragColor = vec4(clamp(fixf(wet), 0., 1.), clamp(fixf(snow), 0., 60.), clamp(fixf(temp), -60., 60.), clamp(fixf(veg), 0., 1.));
+}`;
+
+/* ---- simulation step orchestration --------------------------------------------------- */
+const Sim = {
+  stepCount: 0, paused: false, erodeSpeed: 1,
+  create() {
+    this.src = simMaterial(SOURCES_FS); this.flux = simMaterial(FLUX_FS); this.water = simMaterial(WATER_FS);
+    this.erode = simMaterial(EROSION_FS); this.thermal = simMaterial(THERMAL_FS);
+    this.surf = simMaterial(SURFACE_FS, WINDU); this.soil = simMaterial(SOIL_FS);
+    this.windMat = simMaterial(WIND_FS, Object.assign({}, WINDU, { uFieldRes: { value: CONFIG.WIND_RES } }));
+    this.cloudMat = simMaterial(CLOUD_FS, Object.assign({}, WINDU, { uFieldRes: { value: CONFIG.CLOUD_RES } }));
+  },
+  fields() { GPU.run(this.windMat, Layers.wind); GPU.run(this.cloudMat, Layers.cloud); },
+  step() {
+    const L = Layers;
+    SIMU.uErode.value = this.paused ? 0 : this.erodeSpeed;
+    GPU.run(this.src, L.ground.target); GPU.run(this.surf, L.surf.target);
+    L.ground.swap(); L.surf.swap(); L.bindShared();
+    if (this.stepCount % 3 === 0) { GPU.run(this.soil, L.soil.target); L.soil.swap(); L.bindShared(); }
+    GPU.run(this.flux, L.flux.target); L.flux.swap(); L.bindShared();
+    GPU.run(this.water, L.ground.target); L.ground.swap(); L.bindShared();
+    if (SIMU.uErode.value > 0) {
+      GPU.run(this.erode, L.ground.target); L.ground.swap(); L.bindShared();
+      GPU.run(this.thermal, L.ground.target); L.ground.swap(); L.bindShared();
+    }
+    this.stepCount++;
+  },
+};
+
+/* =====================================================================================
+   LIGHTNING — strikes only under storm cloud (deep, precipitating cloud in the read-back
+   cloud field). Targets are chosen by weight: height and exposure (peak, ridges, tall
+   trees) dominate, the sea surface is possible. A bolt grows as a branching stepped
+   leader toward the ground, then the return stroke flashes as a bright core with a glow
+   and re-strikes two or three times. Each flash lights the scene from the strike point
+   (with its own hard shadow map) and schedules thunder at distance / 343 m/s.
+   A strike on a tree scorches it; on dry ground it smoulders and smokes.
+   ===================================================================================== */
+const BOLT_MAX = 1200;
+const BOLT_VS = /* glsl */`
+attribute vec3 aA; attribute vec3 aB; attribute vec4 aInfo;   // appear time, level, main channel, width
+uniform float uBoltT, uLeaderEnd, uStroke, uFade; uniform vec3 uCamPos;
+varying float vX; varying float vI;
+void main(){
+  vec3 P = mix(aA, aB, position.y);
+  vec3 axis = normalize(aB - aA + 1e-4);
+  vec3 toCam = normalize(uCamPos - P);
+  vec3 side = normalize(cross(axis, toCam) + 1e-5);
+  float dist = length(uCamPos - P);
+  float w = max(aInfo.w, dist * 0.0016) * (1. + 1.8 * uStroke * aInfo.z);
+  P += side * position.x * w * 3.2;
+  vX = position.x;
+  float on = step(aInfo.x, uBoltT);
+  float leader = 0.4 / (1. + aInfo.y);
+  float stroke = aInfo.z > 0.5 ? uStroke : uStroke * 0.5 / (1. + aInfo.y);
+  vI = on * max(uBoltT < uLeaderEnd ? leader : leader * 0.25, stroke) * uFade;
+  gl_Position = projectionMatrix * viewMatrix * vec4(P, 1.);
+}`;
+const BOLT_FS = /* glsl */`
+uniform vec3 p_lightning;
+varying float vX; varying float vI;
+void main(){
+  float a = abs(vX);
+  float core = 1. - smoothstep(0.1, 0.24, a);
+  float glow = pow(1. - a, 2.2) * 0.5;
+  vec3 col = mix(p_lightning * vec3(0.72, 0.68, 1.0), vec3(1.), core);
+  gl_FragColor = vec4(col * (core + glow) * vI * 1.7, 1.);
+}`;
+
+const Lightning = {
+  init(scene) {
+    const g = new THREE.InstancedBufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, 0, 0, 1, 0, 0, -1, 1, 0, 1, 1, 0]), 3));
+    g.setIndex([0, 1, 2, 2, 1, 3]);
+    this.aA = new THREE.InstancedBufferAttribute(new Float32Array(BOLT_MAX * 3), 3);
+    this.aB = new THREE.InstancedBufferAttribute(new Float32Array(BOLT_MAX * 3), 3);
+    this.aInfo = new THREE.InstancedBufferAttribute(new Float32Array(BOLT_MAX * 4), 4);
+    g.setAttribute('aA', this.aA); g.setAttribute('aB', this.aB); g.setAttribute('aInfo', this.aInfo);
+    g.instanceCount = 0;
+    this.u = { uBoltT: { value: 0 }, uLeaderEnd: { value: 1 }, uStroke: { value: 0 }, uFade: { value: 0 }, uCamPos: U.uCamPos, p_lightning: U.p_lightning };
+    this.mat = new THREE.ShaderMaterial({ uniforms: this.u, vertexShader: BOLT_VS, fragmentShader: BOLT_FS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    this.mesh = new THREE.Mesh(g, this.mat); this.mesh.frustumCulled = false; this.mesh.renderOrder = 50;
+    this.geo = g; scene.add(this.mesh);
+    this.bolt = null; this.flash = 0; this.strikes = 0;
+  },
+  reset(seedStr) { this.rng = new RNG(hashString('lightning|' + seedStr)); this.bolt = null; this.geo && (this.geo.instanceCount = 0); },
+  randUnit() { const r = this.rng; let v; do { v = new THREE.Vector3(r.range(-1, 1), r.range(-1, 1), r.range(-1, 1)); } while (v.lengthSq() > 1 || v.lengthSq() < 0.01); return v.normalize(); },
+  stormCloud(x, z) {
+    const thick = Layers.sample(Layers.B, x, z, 2), precip = Layers.sample(Layers.B, x, z, 3);
+    return smoothstep(0.18, 0.6, thick) * smoothstep(0.15, 0.55, precip);
+  },
+  pickTarget() {
+    const S = CONFIG.SUMMARY, sea = U.uSeaLevel.value, cands = [];
+    let total = 0;
+    for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+      const x = ((i + 0.5) / S - 0.5) * DOMAIN, z = ((j + 0.5) / S - 0.5) * DOMAIN;
+      const sc = this.stormCloud(x, z); if (sc < 0.02) continue;
+      const h = Layers.A[(j * S + i) * 4];
+      const w = h > sea ? sc * Math.exp((h - 400) / 320) : sc * 0.25;
+      total += w; cands.push({ w, x, z, y: Math.max(h, sea), tree: -1 });
+    }
+    Flora.trees.forEach((t, k) => {
+      const sc = this.stormCloud(t.x, t.z); if (sc < 0.02) return;
+      const h = Layers.groundAt(t.x, t.z) + t.height;
+      const w = sc * Math.exp((h - 400) / 320) * 0.3;
+      total += w; cands.push({ w, x: t.x, z: t.z, y: h, tree: k });
+    });
+    if (total <= 0) return null;
+    let r = this.rng.next() * total;
+    for (const c of cands) { r -= c.w; if (r <= 0) return c; }
+    return cands[cands.length - 1];
+  },
+  strike() {
+    const tgt = this.pickTarget(); if (!tgt) return;
+    const rng = this.rng, segs = [];
+    const target = new THREE.Vector3(tgt.x + rng.range(-20, 20), tgt.y, tgt.z + rng.range(-20, 20));
+    const base = Math.max(Atmo.lcl, 700) + 350;
+    const start = new THREE.Vector3(tgt.x + rng.range(-700, 700), Math.max(base + 600, tgt.y + 1100), tgt.z + rng.range(-700, 700));
+    let p = start.clone(), t = 0;
+    const add = (a, b, time, level, main, width) => { if (segs.length < BOLT_MAX) segs.push([a.clone(), b.clone(), time, level, main, width]); };
+    const branch = (p0, d0, t0, level) => {
+      let q = p0.clone(), d = d0.clone(), tt = t0;
+      const n = 3 + rng.int(Math.max(2, 12 - level * 4));
+      for (let k = 0; k < n; k++) {
+        d.multiplyScalar(0.6).add(this.randUnit().multiplyScalar(0.75)).add(new THREE.Vector3(0, -0.4, 0)).normalize();
+        const nq = q.clone().addScaledVector(d, rng.range(35, 85) / (1 + level * 0.4));
+        if (nq.y < Layers.groundAt(nq.x, nq.z)) break;
+        add(q, nq, tt, level, 0, 7 / (1 + level));
+        tt += rng.range(0.01, 0.024);
+        if (rng.next() < 0.12 && level < 3) branch(nq, d, tt, level + 1);
+        q = nq;
+      }
+    };
+    for (let k = 0; k < 160 && p.y > target.y + 0.5; k++) {
+      const to = target.clone().sub(p), dist = to.length();
+      let d;
+      if (dist < 130) d = to.normalize();
+      else { d = to.normalize().multiplyScalar(0.55).add(this.randUnit().multiplyScalar(0.7)); d.y = Math.min(d.y, -0.3); d.normalize(); }
+      const q = dist < 130 ? target.clone() : p.clone().addScaledVector(d, Math.min(dist, rng.range(50, 110)));
+      add(p, q, t, 0, 1, 11);
+      if (rng.next() < 0.24) branch(q, d, t, 1);
+      t += rng.range(0.012, 0.028);
+      p = q;
+    }
+    const n = segs.length;
+    for (let i = 0; i < n; i++) {
+      const [a, b, time, level, main, width] = segs[i];
+      this.aA.array.set([a.x, a.y, a.z], i * 3); this.aB.array.set([b.x, b.y, b.z], i * 3);
+      this.aInfo.array.set([time, level, main, width], i * 4);
+    }
+    this.aA.needsUpdate = this.aB.needsUpdate = this.aInfo.needsUpdate = true;
+    this.geo.instanceCount = n;
+    const leaderEnd = t;
+    const pulses = [{ t: leaderEnd, a: 1 }];
+    let pt = leaderEnd;
+    const extra = 1 + rng.int(2);                 // 2–3 flickers in total
+    for (let k = 0; k < extra; k++) { pt += rng.range(0.06, 0.14); pulses.push({ t: pt, a: rng.range(0.45, 0.8) }); }
+    this.bolt = { t: 0, leaderEnd, pulses, end: pt + 0.45, target, start, tree: tgt.tree, thundered: false };
+    U.uFlashPos.value.copy(target).lerp(start, 0.22);
+    this.u.uLeaderEnd.value = leaderEnd;
+    this.strikes++;
+  },
+  update(dt) {
+    const s = Atmo.storm;
+    if (!this.bolt && s > 0.55 && Layers.ready) {
+      const rate = 0.06 + 0.6 * Math.pow((s - 0.55) / 0.45, 1.5);
+      if (this.rng.next() < rate * dt) this.strike();
+    }
+    let flash = 0, stroke = 0;
+    const b = this.bolt;
+    if (b) {
+      b.t += dt;
+      if (b.t < b.leaderEnd) flash = 0.05;
+      for (const p of b.pulses) if (b.t >= p.t) { const e = p.a * Math.exp(-(b.t - p.t) / 0.05); flash += e; stroke += e; }
+      if (!b.thundered && b.t >= b.leaderEnd) {
+        b.thundered = true;
+        const d = U.uCamPos.value.distanceTo(b.target);
+        Sound.thunder(d);
+        if (b.tree >= 0) Flora.scorch(b.tree, Layers.sample(Layers.B, b.target.x, b.target.z, 0), Atmo.precipIsland);
+      }
+      this.u.uBoltT.value = b.t;
+      this.u.uFade.value = 1 - smoothstep(b.end - 0.3, b.end, b.t);
+      if (b.t > b.end) { this.bolt = null; this.geo.instanceCount = 0; }
+    }
+    this.u.uStroke.value = Math.min(stroke, 1.4);
+    this.flash = Math.min(flash, 1.3);
+    U.uFlash.value = this.flash;
+  },
+};
+
+/* =====================================================================================
+   RENDERING — cel-shaded diorama. Every lit surface goes through toonLight(): four hard
+   bands between a hue-keeping blue-violet shadow colour and the light colour, a thin
+   sky-coloured rim on silhouettes facing away from the light, hard shadow-map and
+   cloud shadows, and the lightning flash as a second hard light. Colours come only from
+   the palette uniforms, which are re-tinted per weather on the CPU.
+   Frame: shadow map → opaque scene (sky, terrain, ocean, grass, trees, rocks) into a
+   target with depth → composite pass (ink outlines from depth edges, thinner/lighter
+   with distance, then valley/sea fog) to the screen, writing depth back → transparent
+   pass (cloud slices, god rays, precipitation, spray, dust, smoke, rainbow, lightning).
+   ===================================================================================== */
+const RENDER_COMMON = /* glsl */`
+precision highp float; precision highp sampler2D;
+${PALETTE_GLSL}
+uniform float uTime, uGrid, uCell, uDomain, uCloudDomain, uSeaLevel, uShadowPoint, uShadowBias, uShadowOn;
+uniform float uDay, uNight, uFlash, uStorm, uCover, uCloudBase, uTAir, uDew, uRH, uWindSpeed, uWaveAmp, uDebug, uSeaFog;
+uniform vec2 uWind, uCloudOff;
+uniform vec3 uSunDir, uMoonDir, uLightDir, uLightCol, uShadowCol, uSkyTop, uSkyHor, uFogCol, uFlashPos, uCamPos;
+uniform sampler2D tGround, tFlux, tSurf, tSoil, tWind, tCloud, tShadow;
+uniform mat4 uShadowMat;
+${NOISE_GLSL}
+ivec2 cellOf(vec2 xz){ return clamp(ivec2(floor(xz / uCell + uGrid * 0.5)), ivec2(0), ivec2(int(uGrid) - 1)); }
+vec4 bilerp(sampler2D t, vec2 xz){
+  vec2 f = clamp(xz / uCell + (uGrid - 1.) * 0.5, vec2(0.), vec2(uGrid - 1.001));
+  ivec2 i = ivec2(floor(f)); vec2 w = f - vec2(i);
+  vec4 a = texelFetch(t, i, 0), b = texelFetch(t, i + ivec2(1, 0), 0), c = texelFetch(t, i + ivec2(0, 1), 0), d = texelFetch(t, i + ivec2(1, 1), 0);
+  return mix(mix(a, b, w.x), mix(c, d, w.x), w.y);
+}
+float groundH(vec2 xz){ vec4 g = bilerp(tGround, xz); return g.r + g.g; }
+vec3 groundN(vec2 xz){
+  float e = uCell;
+  return normalize(vec3(groundH(xz - vec2(e, 0.)) - groundH(xz + vec2(e, 0.)), 2. * e, groundH(xz - vec2(0., e)) - groundH(xz + vec2(0., e))));
+}
+vec4 cloudAt(vec2 xz){ return texture(tCloud, xz / uCloudDomain + 0.5); }
+vec4 windAt(vec2 xz){ return texture(tWind, xz / uDomain + 0.5); }
+float luma(vec3 c){ return dot(c, vec3(0.3, 0.59, 0.11)); }
+float cloudShadow(vec3 wp){
+  vec3 L = uLightDir; if (L.y < 0.03) return 1.;
+  vec2 p = wp.xz + L.xz / L.y * max(uCloudBase + 400. - wp.y, 0.);
+  return 1. - 0.78 * smoothstep(0.4, 0.48, cloudAt(p).r);
+}
+float shadowMap(vec3 wp, vec3 n){
+  if (uShadowOn < 0.5) return 1.;
+  vec4 sc = uShadowMat * vec4(wp + n * 5., 1.);
+  vec3 p = sc.xyz / sc.w * 0.5 + 0.5;
+  if (p.x < 0. || p.y < 0. || p.x > 1. || p.y > 1. || p.z > 1.) return 1.;
+  vec2 px = 0.75 / vec2(textureSize(tShadow, 0));
+  float z = p.z - uShadowBias, s = 0.;
+  s += step(z, texture(tShadow, p.xy + vec2(-px.x, -px.y)).r);
+  s += step(z, texture(tShadow, p.xy + vec2( px.x, -px.y)).r);
+  s += step(z, texture(tShadow, p.xy + vec2(-px.x,  px.y)).r);
+  s += step(z, texture(tShadow, p.xy + vec2( px.x,  px.y)).r);
+  return smoothstep(0.3, 0.7, s * 0.25);
+}
+float band4(float x){ return x > 0.55 ? 1. : x > 0.24 ? 0.64 : x > 0.04 ? 0.32 : 0.; }
+vec3 flashLight(vec3 albedo, vec3 N, vec3 wp){
+  if (uFlash < 0.002) return vec3(0.);
+  vec3 Lf = normalize(uFlashPos - wp);
+  float nf = dot(N, Lf);
+  float fs = uShadowPoint > 0.5 ? shadowMap(wp, N) : 1.;
+  vec3 dv = uFlashPos - wp;
+  float att = min(uFlash * 2.2e7 / (dot(dv, dv) + 5e6), 2.4);
+  return albedo * p_lightning * (nf * fs > 0.12 ? 1. : 0.2) * att;
+}
+vec3 toonLight(vec3 albedo, vec3 N, vec3 V, vec3 wp, float occ, float rimAmt){
+  vec3 L = uLightDir;
+  float ndl = dot(N, L);
+  float sh = (uShadowPoint > 0.5 ? 1. : shadowMap(wp, N)) * cloudShadow(wp);
+  float b = band4(max(ndl, 0.) * sh * occ);
+  vec3 rich = clamp(mix(vec3(luma(albedo)), albedo, 1.3), 0., 1.);
+  vec3 col = mix(rich * uShadowCol, albedo * uLightCol, b);
+  float fr = 1. - clamp(dot(N, V), 0., 1.);
+  float rim = smoothstep(0.66, 0.72, fr) * smoothstep(0.2, -0.15, ndl) * rimAmt;
+  col += uSkyHor * rim * (0.18 + 0.3 * uDay);
+  return col + flashLight(albedo, N, wp);
+}
+vec3 rampColor(float t){
+  t = clamp(t, 0., 1.);
+  vec3 a = mix(p_waterDeep, p_waterShallow, smoothstep(0., 0.33, t));
+  vec3 b = mix(p_waterShallow, p_bow3, smoothstep(0.33, 0.66, t));
+  vec3 c = mix(p_bow3, p_bow1, smoothstep(0.66, 1., t));
+  return t < 0.33 ? a : t < 0.66 ? b : c;
+}
+`;
+const DEPTH_FS = /* glsl */`void main(){ gl_FragColor = vec4(1.); }`;
+function makeMat(vs, fs, extra = {}, flags = {}) {
+  return new THREE.ShaderMaterial(Object.assign({
+    uniforms: Object.assign({}, U, extra), vertexShader: RENDER_COMMON + vs, fragmentShader: RENDER_COMMON + fs,
+  }, flags));
+}
+function makeDepthMat(vs, extra = {}) {
+  return new THREE.ShaderMaterial({ uniforms: Object.assign({}, U, extra), vertexShader: '#define DEPTH_PASS\n' + RENDER_COMMON + vs, fragmentShader: 'precision highp float;\n' + DEPTH_FS });
+}
+const offscreen = 'gl_Position = vec4(2., 2., 2., 1.); return;';
+
+// ---- palette tint & sky colours (CPU) -------------------------------------------------
+const Look = {
+  tint: { desat: 0, mul: [1, 1, 1] },
+  update() {
+    const A = Atmo, cover = A.cover, storm = A.storm;
+    const cold = smoothstep(4, -4, A.T0) * smoothstep(0.1, 0.4, A.precipIsland + 0.1);
+    const fog = Math.max(A.seaFog, Render.valleyFog || 0);
+    const desat = 0.12 * cover + 0.28 * storm + 0.22 * fog;
+    const mul = [lerp(1, 0.86, storm) * lerp(1, 0.96, cold), lerp(1, 0.94, storm) * lerp(1, 0.985, cold), lerp(1, 0.9, storm) * lerp(1, 1.05, cold)];
+    for (const k in PAL_RGB) {
+      const c = PAL_RGB[k], l = 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
+      U['p_' + k].value.set(lerp(c[0], l, desat) * mul[0], lerp(c[1], l, desat) * mul[1], lerp(c[2], l, desat) * mul[2]);
+    }
+    const P = k => U['p_' + k].value;
+    const sun = U.uSunDir.value, e = sun.y;
+    U.uMoonDir.value.set(-sun.x + 0.25, -sun.y + 0.18, -sun.z + 0.1).normalize();
+    const day = smoothstep(-0.12, 0.1, e), night = 1 - smoothstep(-0.2, -0.03, e);
+    const golden = smoothstep(-0.1, 0.02, e) * (1 - smoothstep(0.05, 0.3, e));
+    const v3 = () => new THREE.Vector3();
+    const top = v3().copy(P('nightTop')).lerp(P('skyTop'), day).lerp(P('dusk'), golden * 0.45);
+    const hor = v3().copy(P('nightHorizon')).lerp(P('skyHorizon'), day).lerp(P('sunset'), golden * 0.75);
+    const grey = v3().copy(P('cloudStorm')).multiplyScalar(0.35 + 0.65 * day);
+    const ov = cover * 0.55 + storm * 0.35;
+    top.lerp(grey, ov); hor.lerp(v3().copy(P('cloudShade')).multiplyScalar(0.3 + 0.7 * day), ov * 0.8);
+    U.uSkyTop.value.copy(top); U.uSkyHor.value.copy(hor);
+    U.uFogCol.value.copy(hor).lerp(v3().copy(P('cloudShade')).multiplyScalar(0.35 + 0.6 * day), 0.35);
+    // main light: the sun by day, the moon by night (direction switches when both are faint)
+    const sunAmt = smoothstep(-0.03, 0.06, e), moonAmt = (1 - smoothstep(-0.12, -0.03, e)) * 0.32;
+    const sunCol = v3().copy(P('sunset')).lerp(P('sun'), smoothstep(0.03, 0.3, e)).multiplyScalar(sunAmt * (1 - 0.3 * cover - 0.15 * storm) * 1.04);
+    const moonCol = v3().copy(P('moon')).multiplyScalar(moonAmt * (1 - 0.6 * cover));
+    if (e > -0.03) { U.uLightDir.value.copy(sun); U.uLightCol.value.copy(sunCol); }
+    else { U.uLightDir.value.copy(U.uMoonDir.value); U.uLightCol.value.copy(moonCol); }
+    if (U.uLightDir.value.y < 0.02) { U.uLightDir.value.y = 0.02; U.uLightDir.value.normalize(); }
+    U.uShadowCol.value.copy(P('shadow')).multiplyScalar((0.3 + 0.78 * day) * (1 + 0.3 * cover * day - 0.15 * storm)).addScaledVector(top, 0.12);
+    U.uDay.value = day; U.uNight.value = night;
+  },
+};
+
+// ---- shadows ----------------------------------------------------------------------------
+const Shadows = {
+  init() {
+    this.scene = new THREE.Scene();
+    const r = DOMAIN * 0.5;
+    this.sunCam = new THREE.OrthographicCamera(-r, r, r, -r, 10, 26000);
+    this.flashCam = new THREE.PerspectiveCamera(140, 1, 30, 16000);
+    this.setSize(2048);
+  },
+  setSize(size) {
+    if (this.size === size) return;
+    if (this.rt) this.rt.dispose();
+    const dt = new THREE.DepthTexture(size, size, THREE.UnsignedIntType);
+    dt.minFilter = dt.magFilter = THREE.NearestFilter;
+    this.rt = new THREE.WebGLRenderTarget(size, size, { depthTexture: dt, depthBuffer: true, type: THREE.UnsignedByteType, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+    this.size = size; U.tShadow.value = dt;
+  },
+  render(renderer) {
+    const flash = U.uFlash.value > 0.04;
+    let cam;
+    if (flash) {
+      cam = this.flashCam;
+      const f = U.uFlashPos.value;
+      cam.position.copy(f); cam.up.set(0, 0, 1); cam.lookAt(f.x + 1, f.y - 1000, f.z);
+      U.uShadowPoint.value = 1; U.uShadowBias.value = 0.00012;
+    } else {
+      cam = this.sunCam;
+      const L = U.uLightDir.value, c = new THREE.Vector3(0, 500, 0);
+      cam.position.copy(c).addScaledVector(L, 13000);
+      cam.up.set(0, 1, 0); if (Math.abs(L.y) > 0.98) cam.up.set(0, 0, 1);
+      cam.lookAt(c);
+      U.uShadowPoint.value = 0; U.uShadowBias.value = 0.00028;
+    }
+    cam.updateMatrixWorld(); cam.updateProjectionMatrix();
+    U.uShadowMat.value.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+    const prev = U.tShadow.value; U.tShadow.value = null;
+    renderer.setRenderTarget(this.rt); renderer.clear(true, true, false);
+    renderer.render(this.scene, cam);
+    U.tShadow.value = prev;
+  },
+};
+
+// ---- sky dome -------------------------------------------------------------------------
+const SKY_VS = /* glsl */`
+varying vec3 vDir;
+void main(){ vDir = position; vec4 p = projectionMatrix * viewMatrix * vec4(cameraPosition + position, 1.); gl_Position = p.xyww; }`;
+const SKY_FS = /* glsl */`
+varying vec3 vDir;
+void main(){
+  vec3 d = normalize(vDir); float y = d.y, h = clamp(y, 0., 1.);
+  vec3 col = mix(uSkyHor, uSkyTop, pow(h, 0.55));
+  float sd = dot(d, uSunDir);
+  float low = (1. - smoothstep(-0.05, 0.3, uSunDir.y)) * smoothstep(-0.22, -0.04, uSunDir.y);
+  col = mix(col, p_sunset, smoothstep(0.3, 1., sd) * low * (1. - h) * 0.65 * (1. - uCover * 0.7));
+  col = mix(col, uFogCol, smoothstep(0.01, -0.06, y));
+  if (uNight > 0.01 && y > 0.) {
+    vec3 sp = d * 300.; vec3 cell = floor(sp);
+    float hs = hash12(cell.xy + cell.z * 17.13);
+    float star = step(0.9972, hs) * (0.55 + 0.45 * sin(uTime * 2.3 + hs * 90.));
+    col += vec3(star) * uNight * (1. - uCover) * smoothstep(0., 0.2, y);
+  }
+  float vis = 1. - uCover * 0.92;
+  col = mix(col, mix(col, p_sun, 0.4), smoothstep(0.993, 0.9975, sd) * vis * smoothstep(-0.03, 0.02, y));
+  col = mix(col, p_sun, step(0.99955, sd) * vis * smoothstep(-0.02, 0.01, y));
+  float md = dot(d, uMoonDir);
+  vec3 mOff = normalize(uMoonDir + normalize(cross(uMoonDir, vec3(0., 1., 0.)) + 1e-4) * 0.016);
+  float moon = step(0.99963, md) * (1. - 0.85 * step(0.99963, dot(d, mOff)));
+  col = mix(col, p_moon, moon * uNight * vis);
+  if (y > -0.03) {
+    vec2 uv = d.xz / (y + 0.12);
+    float n = fbm(uv * 1.3 + uCloudOff * 0.000035);
+    float t = 1. - clamp(0.22 + uCover * 0.72, 0., 0.94);
+    float c1 = step(t, n), c2 = step(t + 0.1, n);
+    vec3 lit = mix(uLightCol * 0.9 + uSkyHor * 0.25, p_cloud * (0.25 + 0.75 * uDay), 0.5);
+    vec3 cc = mix(p_cloudShade * (0.3 + 0.7 * uDay) * mix(vec3(1.), uSkyHor, 0.3), lit, c2);
+    cc = mix(cc, p_cloudStorm * (0.3 + 0.7 * uDay), uStorm * 0.75);
+    col = mix(col, cc, c1 * smoothstep(-0.03, 0.1, y) * 0.95);
+  }
+  col += p_lightning * uFlash * 0.25 * smoothstep(-0.1, 0.4, y);
+  gl_FragColor = vec4(col, 1.);
+}`;
+
+// ---- terrain: one grid mesh whose vertex heights are read from the heightfield every
+// frame on the GPU (no mesh rebuild); material chosen per cell from the shared layers.
+function buildTerrainGeometry() {
+  const pos = new Float32Array(N * N * 3);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const k = (j * N + i) * 3; pos[k] = (i - HALF) * CELL; pos[k + 2] = (j - HALF) * CELL; }
+  const idx = new Uint32Array((N - 1) * (N - 1) * 6);
+  let q = 0;
+  for (let j = 0; j < N - 1; j++) for (let i = 0; i < N - 1; i++) {
+    const a = j * N + i, b = a + 1, c = a + N, d = c + 1;
+    if ((i + j) & 1) { idx.set([a, c, b, b, c, d], q); } else { idx.set([a, c, d, a, d, b], q); }
+    q += 6;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setIndex(new THREE.BufferAttribute(idx, 1));
+  return g;
+}
+const TERRAIN_VS = /* glsl */`
+varying vec3 vWorld; varying vec3 vN; varying vec4 vG; varying vec4 vS; varying vec4 vSoil; varying vec2 vFlow;
+float surfH(ivec2 c){ c = clamp(c, ivec2(0), ivec2(int(uGrid) - 1)); vec4 g = texelFetch(tGround, c, 0); return g.r + g.g + texelFetch(tSurf, c, 0).g * 0.5; }
+void main(){
+  ivec2 c = cellOf(position.xz);
+  vec4 g = texelFetch(tGround, c, 0), s = texelFetch(tSurf, c, 0);
+  vec3 wp = vec3(position.x, g.r + g.g + s.g * 0.5, position.z);
+#ifdef DEPTH_PASS
+  gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.);
+#else
+  vN = normalize(vec3(surfH(c + ivec2(-1, 0)) - surfH(c + ivec2(1, 0)), 2. * uCell, surfH(c + ivec2(0, -1)) - surfH(c + ivec2(0, 1))));
+  vec4 f = texelFetch(tFlux, c, 0);
+  vFlow = vec2(f.y - f.x, f.w - f.z) * uCell / max(g.b, 0.02);
+  vG = g; vS = s; vSoil = texelFetch(tSoil, c, 0); vWorld = wp;
+  gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.);
+#endif
+}`;
+const TERRAIN_FS = /* glsl */`
+varying vec3 vWorld; varying vec3 vN; varying vec4 vG; varying vec4 vS; varying vec4 vSoil; varying vec2 vFlow;
+void main(){
+  vec3 N = normalize(vN), wp = vWorld, V = normalize(uCamPos - wp);
+  float hg = vG.r + vG.g, sed = vG.g, water = vG.b;
+  float wet = vS.r, snow = vS.g, temp = vS.b, veg = vS.a;
+  float green = vSoil.g, ice = vSoil.b, frost = vSoil.a;
+  float tanS = sqrt(max(1. - N.y * N.y, 0.)) / max(N.y, 0.05);
+  float n1 = fbm3(wp.xz * 0.0035), n2 = vnoise(wp.xz * 0.025);
+  // material per cell: sand near the sea and on fresh deposits, grass/soil on gentle slopes, rock on steep or bare ground
+  float sandF = 1. - smoothstep(9., 15., hg - uSeaLevel + (n2 - 0.5) * 6.);
+  sandF = max(sandF, smoothstep(1.5, 3.5, sed) * (1. - smoothstep(25., 70., hg - uSeaLevel)));
+  float rockF = max(smoothstep(0.8, 0.96, tanS + n2 * 0.08), 1. - smoothstep(0.04, 0.3, sed));
+  float grassF = smoothstep(0.18, 0.42, veg + (n1 - 0.5) * 0.15);
+  rockF = max(rockF, smoothstep(1150., 1500., hg + (n1 - 0.5) * 300.) * (1. - grassF));   // alpine scree
+  vec3 grassC = mix(p_grassDark, p_grass, step(0.48, n1 + 0.12 * n2));
+  grassC = mix(p_grassDry, grassC, smoothstep(0.25, 0.7, green));
+  vec3 rockC = mix(p_rock, p_rockDark, step(0.6, n1 + tanS * 0.04));
+  vec3 alb = mix(p_soil, grassC, grassF);
+  alb = mix(alb, p_sand, sandF * (1. - grassF * 0.7));
+  alb = mix(alb, rockC, rockF * (1. - sandF * 0.5));
+  alb = mix(alb, p_ice, frost * grassF * 0.75);
+  alb *= 1. - 0.34 * wet;
+  float snowF = step(0.5, smoothstep(0.012, 0.05, snow + (n2 - 0.5) * 0.03));
+  vec3 col = snowF > 0.5 ? toonLight(mix(p_snow, p_snowShade, 0.2 * (1. - N.y)), N, V, wp, 1., 1.) : toonLight(alb, N, V, wp, 1., 1.);
+  // wet gloss
+  float gl = pow(max(dot(reflect(-uLightDir, N), V), 0.), 14.);
+  col += uLightCol * step(0.75, gl) * wet * 0.2 * cloudShadow(wp) * (1. - snowF);
+  // puddles, streams, the river and ice
+  float puddle = step(0.045 + 0.12 * tanS, water) * step(uSeaLevel + 0.2, hg) * (1. - snowF);
+  if (puddle > 0.5) {
+    vec3 Nw = vec3(0., 1., 0.);
+    float rain = cloudAt(wp.xz).g * step(1., temp);
+    vec2 cp = floor(wp.xz / 9.), fp = fract(wp.xz / 9.) - 0.5;
+    float ph = fract(uTime * 1.3 + hash12(cp));
+    float ring = step(abs(length(fp) - ph * 0.5), 0.035) * (1. - ph) * step(hash12(cp + 3.1), rain * 1.5);
+    float fres = pow(1. - max(dot(V, Nw), 0.), 3.);
+    vec3 sky = mix(uSkyTop, uSkyHor, 0.4 + 0.6 * step(0.3, fres));
+    vec3 wc = mix(p_waterShallow, p_waterMid, smoothstep(0.1, 1.5, water));
+    float lb = band4(max(uLightDir.y, 0.) * cloudShadow(wp) * (uShadowPoint > 0.5 ? 1. : shadowMap(wp, Nw)));
+    wc = mix(wc * uShadowCol * 1.15, wc * uLightCol, lb);
+    wc = mix(wc, sky, 0.42);
+    float sp = length(vFlow);
+    if (sp > 1.0) {
+      vec2 fd = vFlow / sp; vec2 q = vec2(dot(wp.xz, fd), dot(wp.xz, vec2(-fd.y, fd.x)));
+      float st = step(0.7, vnoise(vec2(q.x * 0.025 - uTime * min(sp, 6.) * 0.12, q.y * 0.16)));
+      wc = mix(wc, p_foam * (0.45 + 0.55 * uLightCol), st * smoothstep(1., 3., sp) * 0.75);
+    }
+    vec3 R = reflect(-uLightDir, Nw); float s2 = max(dot(R, V), 0.);
+    wc += uLightCol * (step(0.985, s2) * 0.45 + step(0.996, s2) * 0.55) * cloudShadow(wp);
+    if (ice > 0.5) { wc = toonLight(p_ice, Nw, V, wp, 1., 0.) + uLightCol * step(0.975, s2) * 0.8 + mix(uSkyHor, uSkyTop, 0.5) * 0.15; }
+    col = wc + vec3(ring) * 0.3 * (0.3 + 0.7 * uDay) + flashLight(wc, Nw, wp) * 0.5;
+  }
+  if (uDebug > 0.5) {
+    int m = int(uDebug + 0.5); float v = 0.;
+    if (m == 1) v = sqrt(clamp(water / 2., 0., 1.));
+    else if (m == 2) v = sed / 8.;
+    else if (m == 3) v = wet;
+    else if (m == 4) v = sqrt(clamp(snow / 2., 0., 1.));
+    else if (m == 5) v = (temp + 15.) / 45.;
+    else if (m == 6) v = veg;
+    else if (m == 7) v = sqrt(clamp(vG.a / 0.05, 0., 1.));
+    else v = length(windAt(wp.xz).xy) / 30.;
+    vec3 dc = rampColor(v);
+    if (m == 1 || m == 4 || m == 7) dc = mix(p_rockDark * 0.55, dc, step(0.015, v));
+    float sh = band4(max(dot(N, normalize(vec3(0.4, 1., 0.3))), 0.));      // fixed light so the overlay reads at any hour
+    col = dc * (0.62 + 0.38 * sh);
+  }
+  gl_FragColor = vec4(col, 1.);
+}`;
+
+// ---- ocean: summed Gerstner waves, depth colour, hard foam line, toon specular --------
+function buildOceanGeometry() {
+  const A = 320, R = 260, Rmax = 42000;
+  const pos = new Float32Array((1 + A * R) * 3);
+  for (let k = 1; k <= R; k++) {
+    const r = Rmax * Math.pow(k / R, 2.3);
+    for (let a = 0; a < A; a++) { const t = a / A * Math.PI * 2, n = 1 + (k - 1) * A + a; pos[n * 3] = Math.cos(t) * r; pos[n * 3 + 2] = Math.sin(t) * r; }
+  }
+  const idx = [];
+  for (let a = 0; a < A; a++) idx.push(0, 1 + (a + 1) % A, 1 + a);
+  for (let k = 1; k < R; k++) for (let a = 0; a < A; a++) {
+    const i0 = 1 + (k - 1) * A + a, i1 = 1 + (k - 1) * A + (a + 1) % A, j0 = i0 + A, j1 = i1 + A;
+    idx.push(i0, i1, j0, i1, j1, j0);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setIndex(idx);
+  return g;
+}
+const OCEAN_VS = /* glsl */`
+varying vec3 vWorld; varying vec3 vN; varying float vCrest;
+void main(){
+  vec2 p = position.xz;
+  float depth = uSeaLevel - groundH(p);
+  float att = smoothstep(0.5, 30., depth);
+  float wa = atan(uWind.y, uWind.x);
+  vec3 disp = vec3(0.), nrm = vec3(0., 1., 0.);
+  float amp = uWaveAmp * att, Q = 0.45 + 0.4 * uStorm;
+  for (int i = 0; i < 6; i++) {
+    float fi = float(i);
+    float ang = wa + (hash11(fi * 3.7 + 1.3) - 0.5) * 1.7;
+    vec2 D = vec2(cos(ang), sin(ang));
+    float L = 560. * pow(0.72, fi), k = 6.2832 / L, c = sqrt(9.81 / k);
+    float a = amp * 0.45 * pow(0.76, fi);
+    float f = k * (dot(D, p) - c * uTime) + fi * 1.7;
+    float qi = min(Q / (k * max(a, 1e-3) * 6.), 1.);
+    float cf = cos(f), sf = sin(f);
+    disp.xz += qi * a * D * cf; disp.y += a * sf;
+    nrm.xz -= D * k * a * cf; nrm.y -= qi * k * a * sf;
+  }
+  vec3 wp = vec3(p.x + disp.x, uSeaLevel + disp.y, p.y + disp.z);
+  vCrest = disp.y / max(uWaveAmp * 0.9, 0.05);
+  vN = normalize(nrm); vWorld = wp;
+  gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.);
+}`;
+const OCEAN_FS = /* glsl */`
+varying vec3 vWorld; varying vec3 vN; varying float vCrest;
+void main(){
+  vec3 wp = vWorld, V = normalize(uCamPos - wp);
+  float depth = uSeaLevel - groundH(wp.xz);
+  vec3 N = normalize(vN);
+  vec2 rq = wp.xz * 0.018 + uWind * uTime * 0.012;
+  float r1 = vnoise(rq), r2 = vnoise(rq + vec2(0.37, 0.)), r3 = vnoise(rq + vec2(0., 0.37));
+  N = normalize(N + vec3(r1 - r2, 0., r1 - r3) * (0.25 + 0.035 * uWindSpeed + 0.4 * uStorm));
+  vec3 reef = p_sand * mix(0.95, 0.72, smoothstep(0., 8., depth));
+  vec3 c = mix(p_waterShallow, p_waterMid, smoothstep(3., 24., depth));
+  c = mix(c, p_waterDeep, smoothstep(22., 120., depth));
+  c = mix(mix(reef, p_waterShallow, 0.42), c, smoothstep(0.6, 6.5, depth));
+  float cl = cloudAt(wp.xz).r;
+  float stormy = uStorm * (0.35 + 0.65 * cl);
+  c = mix(c, vec3(luma(c)) * vec3(0.86, 1.02, 0.9) * 1.08, stormy * 0.6);    // grey-green under storm cloud
+  vec3 Nd = normalize(mix(N, vec3(0., 1., 0.), 0.55));
+  vec3 col = toonLight(c, Nd, V, wp, 1., 0.);
+  float fres = pow(1. - max(dot(N, V), 0.), 4.);
+  col = mix(col, uSkyHor * (0.55 + 0.45 * uDay), step(0.28, fres) * 0.3 + step(0.62, fres) * 0.25);
+  vec3 H = normalize(uLightDir + V);
+  float sp = pow(max(dot(N, H), 0.), 260.);
+  col += (step(0.3, sp) * 0.55 + step(0.75, sp) * 0.45) * uLightCol * cloudShadow(wp);
+  float capN = vnoise(wp.xz * 0.011 + uTime * 0.05);
+  vec2 wdir = normalize(uWind + 1e-3);
+  vec2 wq = vec2(dot(wp.xz, wdir), dot(wp.xz, vec2(-wdir.y, wdir.x)));
+  float capS = vnoise(vec2(wq.x * 0.045, wq.y * 0.016) - vec2(uTime * 0.35, 0.));
+  float whitecap = step(0.9 - smoothstep(8., 26., uWindSpeed) * 0.16, capS * 0.75 + 0.25 * clamp(vCrest * 0.5 + 0.5, 0., 1.)) * smoothstep(8., 14., uWindSpeed) * smoothstep(6., 18., depth);
+  float fw = 0.9 + 0.55 * sin(uTime * 0.9 + capN * 6.) + uWaveAmp * 0.07;
+  float foam1 = 1. - step(fw, depth);
+  float foam2 = step(fw * 2.2, depth) * (1. - step(fw * 2.2 + 0.6, depth)) * step(0.45, vnoise(wp.xz * 0.05 + uTime * 0.1));
+  float foam = max(max(foam1, foam2), whitecap);
+  vec3 foamC = toonLight(p_foam, vec3(0., 1., 0.), V, wp, 1., 0.);
+  col = mix(col, foamC, foam);
+  gl_FragColor = vec4(col, 1.);
+}`;
+
+// ---- grass: instanced blades, lit per vertex, bent by the local wind speed -------------
+const GRASS_VS = /* glsl */`
+attribute vec2 iPos; attribute vec4 iRnd;
+varying vec3 vCol;
+void main(){
+  vec2 xz = iPos;
+  vec4 g = bilerp(tGround, xz);
+  float hg = g.r + g.g;
+  ivec2 c = cellOf(xz);
+  vec4 s = texelFetch(tSurf, c, 0), so = texelFetch(tSoil, c, 0);
+  float show = step(iRnd.x, s.a * 1.25) * step(s.g, 0.3) * step(g.b, 0.12) * step(uSeaLevel + 4., hg);
+  if (show < 0.5) { ${offscreen} }
+  float t = position.y;
+  float H = mix(13., 26., iRnd.y) * (0.55 + 0.45 * s.a) * (1. - smoothstep(0.03, 0.3, s.g) * 0.6);
+  vec4 wf = windAt(xz);
+  float ws = length(wf.xy);
+  vec2 wd = wf.xy / max(ws, 0.01);
+  float rot = iRnd.z * 6.2832; vec2 side = vec2(cos(rot), sin(rot));
+  float flutter = sin(uTime * (2.4 + iRnd.w * 1.5) + iRnd.z * 30. + dot(xz, vec2(0.013, 0.009)));
+  float bendAmt = clamp(ws / 26., 0., 1.15);
+  vec2 bend = wd * bendAmt + vec2(-wd.y, wd.x) * flutter * (0.05 + 0.12 * bendAmt);
+  vec3 p = vec3(xz.x, hg, xz.y);
+  p.xz += side * position.x * 3.6 * (1. - t * 0.85);
+  p.xz += bend * H * t * t;
+  p.y += H * t * (1. - 0.4 * min(dot(bend, bend), 1.));
+  vec3 root = vec3(xz.x, hg, xz.y);
+  vec3 base = mix(p_grassDark, p_grass, t * 0.9 + 0.1 * step(0.6, iRnd.w));
+  base = mix(p_grassDry, base, smoothstep(0.25, 0.7, so.g));
+  base = mix(base, p_ice, so.a * t * 0.85);
+  base *= 1. - 0.25 * s.r;
+  base = mix(base, p_snow, smoothstep(0.02, 0.2, s.g) * t);
+  vCol = toonLight(base, groundN(xz), normalize(uCamPos - p), root, 1., 0.) + uLightCol * 0.05 * t * t;
+  gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.);
+}`;
+const FLAT_FS = /* glsl */`varying vec3 vCol; void main(){ gl_FragColor = vec4(vCol, 1.); }`;
+
+// ---- trees: low-poly foliage clumps on a trunk, flat-shaded, swaying, can be scorched ---
+function buildTreeGeometry() {
+  const parts = [];
+  const jitter = (g, amt, seed) => {
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      const h = Math.sin(x * 127.1 + y * 311.7 + z * 74.7 + seed) * 43758.5453;
+      const r = 1 + (h - Math.floor(h) - 0.5) * amt;
+      p.setXYZ(i, x * r, y * r, z * r);
+    }
+  };
+  const trunk = new THREE.CylinderGeometry(0.035, 0.06, 0.5, 5, 1).translate(0, 0.25, 0);
+  parts.push([trunk, 0]);
+  const clumps = [[0, 0.56, 0, 0.3], [0.13, 0.76, 0.05, 0.22], [-0.11, 0.7, -0.09, 0.23], [0.02, 0.9, -0.02, 0.15]];
+  clumps.forEach(([x, y, z, r], k) => { const g = new THREE.IcosahedronGeometry(r, 0); jitter(g, 0.35, k * 7.1); g.translate(x, y, z); parts.push([g, 1]); });
+  const pos = [], nor = [], part = [];
+  for (const [g0, kind] of parts) {
+    const g = g0.index ? g0.toNonIndexed() : g0; g.computeVertexNormals();
+    pos.push(...g.attributes.position.array); nor.push(...g.attributes.normal.array);
+    for (let i = 0; i < g.attributes.position.count; i++) part.push(kind);
+  }
+  const ig = new THREE.InstancedBufferGeometry();
+  ig.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  ig.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  ig.setAttribute('aPart', new THREE.Float32BufferAttribute(part, 1));
+  return ig;
+}
+const TREE_VS = /* glsl */`
+attribute float aPart; attribute vec4 iA; attribute vec4 iB;   // iA: x, z, rotation, scale  iB: kind, scorch, smoulder, seed
+varying vec3 vN; varying vec3 vWorld; varying float vPart; varying float vSnow; varying float vScorch; varying float vWet;
+void main(){
+  vec2 xz = iA.xy;
+  float hg = groundH(xz);
+  vec4 s = texelFetch(tSurf, cellOf(xz), 0);
+  float sc = iA.w, kind = iB.x;
+  float Ht = sc * mix(62., 95., kind), Wd = sc * mix(54., 38., kind);
+  float cr = cos(iA.z), sr = sin(iA.z);
+  vec3 lp = position, ln = normal;
+  lp.xz = mat2(cr, -sr, sr, cr) * lp.xz; ln.xz = mat2(cr, -sr, sr, cr) * ln.xz;
+  vec3 p = vec3(lp.x * Wd, lp.y * Ht, lp.z * Wd);
+  vec4 wf = windAt(xz); float ws = length(wf.xy); vec2 wd = wf.xy / max(ws, 0.01);
+  float hf = position.y;
+  float sway = clamp(ws / 28., 0., 1.2) * 0.15 * Ht * hf * hf;
+  float fl = sin(uTime * (1.4 + iB.w) + iB.w * 40.) * (0.3 + ws * 0.04) * hf * hf * Ht * 0.02 * aPart;
+  p.xz += wd * (sway + fl) + vec2(-wd.y, wd.x) * fl * 0.6;
+  p.y -= sway * 0.12 * hf;
+  vec3 wp = vec3(xz.x, hg - 3., xz.y) + p;
+  gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.);
+#ifndef DEPTH_PASS
+  vN = normalize(vec3(ln.x / Wd, ln.y / Ht, ln.z / Wd)); vWorld = wp; vPart = aPart; vSnow = s.g; vScorch = iB.y; vWet = s.r;
+#endif
+}`;
+const TREE_FS = /* glsl */`
+varying vec3 vN; varying vec3 vWorld; varying float vPart; varying float vSnow; varying float vScorch; varying float vWet;
+void main(){
+  vec3 N = normalize(vN), V = normalize(uCamPos - vWorld);
+  vec3 alb = vPart < 0.5 ? p_trunk : mix(p_foliageDark, p_foliage, step(0.15, N.y + 0.12 * sin(vWorld.x * 0.05 + vWorld.z * 0.03)));
+  alb = mix(alb, p_scorch, vScorch * (vPart < 0.5 ? 0.8 : 1.));
+  alb *= 1. - 0.2 * vWet;
+  float snowy = step(0.02, vSnow) * step(0.42 - min(vSnow, 0.6) * 0.35, N.y) * step(0.5, vPart + step(0.85, N.y)) * (1. - vScorch * 0.7);
+  vec3 col = toonLight(snowy > 0.5 ? p_snow : alb, N, V, vWorld, 1., 1.);
+  gl_FragColor = vec4(col, 1.);
+}`;
+
+// ---- boulders ---------------------------------------------------------------------------
+function buildRockGeometry() {
+  const g0 = new THREE.IcosahedronGeometry(1, 1), p = g0.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const h = Math.sin(x * 12.9 + y * 78.2 + z * 37.7) * 43758.5453, r = 0.8 + (h - Math.floor(h)) * 0.4;
+    p.setXYZ(i, x * r * 1.2, Math.max(y * r * 0.75, -0.3), z * r);
+  }
+  const g = g0.index ? g0.toNonIndexed() : g0; g.computeVertexNormals();
+  const ig = new THREE.InstancedBufferGeometry();
+  ig.setAttribute('position', g.attributes.position); ig.setAttribute('normal', g.attributes.normal);
+  return ig;
+}
+const ROCK_VS = /* glsl */`
+attribute vec4 iA; attribute vec4 iB;
+varying vec3 vN; varying vec3 vWorld; varying float vSnow; varying float vWet;
+void main(){
+  vec2 xz = iA.xy; float hg = groundH(xz);
+  vec4 s = texelFetch(tSurf, cellOf(xz), 0);
+  float sc = iA.w * 16., cr = cos(iA.z), sr = sin(iA.z);
+  vec3 lp = position, ln = normal;
+  lp.xz = mat2(cr, -sr, sr, cr) * lp.xz; ln.xz = mat2(cr, -sr, sr, cr) * ln.xz;
+  lp.y += lp.x * iB.x;
+  vec3 wp = vec3(xz.x, hg - sc * 0.2, xz.y) + lp * sc;
+  gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.);
+#ifndef DEPTH_PASS
+  vN = normalize(ln); vWorld = wp; vSnow = s.g; vWet = s.r;
+#endif
+}`;
+const ROCK_FS = /* glsl */`
+varying vec3 vN; varying vec3 vWorld; varying float vSnow; varying float vWet;
+void main(){
+  vec3 N = normalize(vN), V = normalize(uCamPos - vWorld);
+  vec3 alb = mix(p_rock, p_rockDark, step(0.35, 0.5 - N.y * 0.5 + vnoise(vWorld.xz * 0.04) * 0.3)) * (1. - 0.3 * vWet);
+  float snowy = step(0.02, vSnow) * step(0.45, N.y);
+  gl_FragColor = vec4(toonLight(snowy > 0.5 ? p_snow : alb, N, V, vWorld, 1., 1.), 1.);
+}`;
+
+const Flora = {
+  trees: [],
+  init(scene, shadowScene) {
+    const blade = new THREE.InstancedBufferGeometry();
+    blade.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-0.5, 0, 0, 0.5, 0, 0, -0.38, 0.45, 0, 0.38, 0.45, 0, 0, 1, 0]), 3));
+    blade.setIndex([0, 1, 2, 2, 1, 3, 2, 3, 4]);
+    this.grassGeo = blade;
+    this.grassMat = makeMat(GRASS_VS, FLAT_FS, {}, { side: THREE.DoubleSide });
+    this.grass = new THREE.Mesh(blade, this.grassMat); this.grass.frustumCulled = false;
+    this.treeGeo = buildTreeGeometry();
+    this.tree = new THREE.Mesh(this.treeGeo, makeMat(TREE_VS, TREE_FS)); this.tree.frustumCulled = false;
+    this.treeShadow = new THREE.Mesh(this.treeGeo, makeDepthMat(TREE_VS)); this.treeShadow.frustumCulled = false;
+    this.rockGeo = buildRockGeometry();
+    this.rock = new THREE.Mesh(this.rockGeo, makeMat(ROCK_VS, ROCK_FS)); this.rock.frustumCulled = false;
+    this.rockShadow = new THREE.Mesh(this.rockGeo, makeDepthMat(ROCK_VS)); this.rockShadow.frustumCulled = false;
+    scene.add(this.grass, this.tree, this.rock); shadowScene.add(this.treeShadow, this.rockShadow);
+    this.smoke = Array.from({ length: 4 }, () => new THREE.Vector4());
+  },
+  setPlacement(f) {
+    this.rng = new RNG(hashString('fire|' + Atmo.seed));
+    this.grassGeo.setAttribute('iPos', new THREE.InstancedBufferAttribute(f.gPos, 2));
+    this.grassGeo.setAttribute('iRnd', new THREE.InstancedBufferAttribute(f.gRnd, 4));
+    this.grassTotal = f.grassCount; this.setGrassFraction(this.grassFrac ?? 1);
+    this.trees = f.trees;
+    const A = new Float32Array(f.trees.length * 4), B = new Float32Array(f.trees.length * 4);
+    f.trees.forEach((t, i) => { A.set([t.x, t.z, t.rot, t.scale], i * 4); B.set([t.kind, 0, 0, (i * 0.618) % 1], i * 4); t.height = t.scale * lerp(62, 95, t.kind); });
+    this.treeA = new THREE.InstancedBufferAttribute(A, 4); this.treeB = new THREE.InstancedBufferAttribute(B, 4);
+    this.treeGeo.setAttribute('iA', this.treeA); this.treeGeo.setAttribute('iB', this.treeB); this.treeGeo.instanceCount = f.trees.length;
+    const RA = new Float32Array(f.rocks.length * 4), RB = new Float32Array(f.rocks.length * 4);
+    f.rocks.forEach((r, i) => { RA.set([r.x, r.z, r.rot, r.scale], i * 4); RB.set([r.tilt, 0, 0, 0], i * 4); });
+    this.rockGeo.setAttribute('iA', new THREE.InstancedBufferAttribute(RA, 4)); this.rockGeo.setAttribute('iB', new THREE.InstancedBufferAttribute(RB, 4));
+    this.rockGeo.instanceCount = f.rocks.length;
+  },
+  setGrassFraction(f) { this.grassFrac = f; if (this.grassTotal) this.grassGeo.instanceCount = Math.floor(this.grassTotal * f); },
+  scorch(k, wet, precip) {
+    const t = this.trees[k]; if (!t) return;
+    t.scorch = 1;
+    if (wet < 0.4 && precip < 0.5) t.smoulder = this.rng.range(60, 140);
+    this.treeB.array[k * 4 + 1] = 1; this.treeB.needsUpdate = true;
+  },
+  update(dt) {
+    const burning = [];
+    for (const t of this.trees) {
+      if (t.smoulder > 0) {
+        const wetHere = Layers.sample(Layers.B, t.x, t.z, 0), rainHere = Layers.sample(Layers.B, t.x, t.z, 3);
+        t.smoulder -= dt * (1 + 6 * rainHere + 2 * wetHere);
+        if (t.smoulder > 0) burning.push(t);
+      }
+    }
+    burning.sort((a, b) => b.smoulder - a.smoulder);
+    for (let i = 0; i < 4; i++) {
+      const t = burning[i];
+      if (t) this.smoke[i].set(t.x, Layers.groundAt(t.x, t.z) + t.height * 0.6, t.z, Math.min(1, t.smoulder / 20));
+      else this.smoke[i].w = 0;
+    }
+  },
+};
+
+// ---- cloud slices: stacked planes that follow the cloud field's base and top, cut out
+// where density passes a per-slice threshold (flat bases, domed tops), banded lighting.
+const CLOUD_SLICES = 6;
+const CLOUD_VS = /* glsl */`
+uniform float uSlice; varying vec2 vXZ; varying float vY;
+void main(){
+  vec3 p = position;
+  vec4 c = cloudAt(p.xz);
+  p.y = max(c.b, 700.) + uSlice * clamp(c.a - c.b, 80., 2200.);
+  vXZ = p.xz; vY = p.y;
+  gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.);
+}`;
+const CLOUD_SLICE_FS = /* glsl */`
+uniform float uSlice; varying vec2 vXZ; varying float vY;
+void main(){
+  vec4 c = cloudAt(vXZ);
+  vec2 q = (vXZ - uCloudOff) * 0.0011;
+  float detail = fbm3(q + uSlice * 0.35) * 0.65 + vnoise(q * 3.3 - uSlice * 1.7) * 0.35;
+  float d = c.r * (0.45 + 1.1 * detail);                               // breaks full cover into puffy towers
+  float thr = 0.22 + 0.95 * pow(uSlice, 1.25);                          // flat bases, domed and broken tops
+  if (d < thr) discard;
+  // diorama cut-away: cloud between the camera and the island dissolves (ordered dither)
+  float camD = length(uCamPos - vec3(vXZ.x, vY, vXZ.y)), cutNear = length(uCamPos - vec3(0., 500., 0.)) * 0.9;
+  ivec2 bp = ivec2(gl_FragCoord.xy) & 3;
+  int B4[16] = int[16](0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5);
+  if (smoothstep(cutNear, cutNear * 1.18, camD) < (float(B4[bp.y * 4 + bp.x]) + 0.5) / 16.) discard;
+  float edge = 1. - step(thr + 0.045, d);
+  vec3 lit = mix(p_cloudShade, p_cloud, step(0.3, uSlice) * 0.5 + step(0.65, uSlice) * 0.5);
+  lit = mix(lit, p_cloudStorm, uStorm * (0.85 - 0.6 * uSlice) + smoothstep(0.35, 1., (c.a - c.b) / 7000.) * 0.35 * (1. - uSlice));
+  float lum = luma(uLightCol);
+  vec3 sunC = mix(vec3(lum), uLightCol, 0.4) * smoothstep(0.0, 0.6, uSlice);
+  vec3 col = lit * (sunC * 0.7 + uShadowCol * 0.8 + uSkyHor * 0.45);
+  vec3 dv = uFlashPos - vec3(vXZ.x, vY, vXZ.y);
+  col += p_lightning * min(uFlash * 1.6e7 / (dot(dv, dv) + 3e6), 1.6);
+  col = mix(col, col * 0.72, edge);
+  gl_FragColor = vec4(col, 1.);
+}`;
+
+// ---- particles -------------------------------------------------------------------------
+const PARTICLE_COMMON = /* glsl */`
+attribute vec4 aSeed;
+uniform float uHailAmt, uRainOn;
+uniform vec4 uSmoke[4];
+vec3 camRight(){ return vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]); }
+vec3 camUp(){ return vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]); }
+float airTemp(float y){ return uTAir - 0.0065 * y; }
+vec3 particleLight(vec3 c){ return c * (uLightCol * 0.6 + uShadowCol * 0.55) + p_lightning * uFlash * 0.8; }
+`;
+const RAIN_VS = PARTICLE_COMMON + /* glsl */`
+varying float vA; varying vec2 vUV;
+void main(){
+  vec2 xz0 = (aSeed.xy - 0.5) * uDomain * 1.1;
+  vec4 cl = cloudAt(xz0);
+  float top = max(cl.b, 700.), fallV = 240., H = top + 50.;
+  float ph = fract(uTime * fallV / H + aSeed.z);
+  float y = top - ph * H;
+  vec2 drift = windAt(xz0).xy * 7.;
+  vec2 xz = xz0 + drift * (ph * H / fallV);
+  float hg = max(groundH(xz), uSeaLevel);
+  float vis = step(aSeed.w, cl.g * 1.3) * smoothstep(0.4, 1.6, airTemp(y)) * step(hg, y) * uRainOn;
+  if (vis < 0.01) { ${offscreen} }
+  vec3 vel = normalize(vec3(drift.x, -fallV, drift.y)), P = vec3(xz.x, y, xz.y);
+  float dist = length(uCamPos - P);
+  vec3 side = normalize(cross(vel, normalize(uCamPos - P)));
+  float t = position.y * 0.5 + 0.5;
+  P += -vel * t * 85. + side * position.x * max(1.3, dist * 0.0009);
+  vA = vis; vUV = vec2(position.x, t);
+  gl_Position = projectionMatrix * viewMatrix * vec4(P, 1.);
+}`;
+const RAIN_FS = /* glsl */`
+varying float vA; varying vec2 vUV;
+void main(){
+  float a = vA * (1. - abs(vUV.x)) * (0.3 + 0.7 * vUV.y) * 0.32;
+  gl_FragColor = vec4(mix(p_cloudShade, p_cloud, 0.6) * (uLightCol * 0.5 + uShadowCol * 0.5 + uSkyHor * 0.35) + p_lightning * uFlash * 0.9, a);
+}`;
+const SNOWP_VS = PARTICLE_COMMON + /* glsl */`
+varying float vA; varying vec2 vUV;
+void main(){
+  vec2 xz0 = (aSeed.xy - 0.5) * uDomain * 1.1;
+  vec4 cl = cloudAt(xz0);
+  float top = max(cl.b, 700.), fallV = 38., H = top + 50.;
+  float ph = fract(uTime * fallV / H + aSeed.z);
+  float y = top - ph * H, tf = ph * H / fallV;
+  vec2 xz = xz0 + windAt(xz0).xy * 5. * tf + vec2(sin(uTime * 1.3 + aSeed.w * 30.), cos(uTime * 1.1 + aSeed.z * 20.)) * 22.;
+  float hg = max(groundH(xz), uSeaLevel);
+  float vis = step(aSeed.w, cl.g * 1.3) * (1. - smoothstep(0.4, 1.6, airTemp(y))) * step(hg, y) * uRainOn;
+  if (vis < 0.01) { ${offscreen} }
+  vec3 P = vec3(xz.x, y, xz.y);
+  float s = max(5., length(uCamPos - P) * 0.0016);
+  P += (camRight() * position.x + camUp() * position.y) * s;
+  vA = vis; vUV = position.xy;
+  gl_Position = projectionMatrix * viewMatrix * vec4(P, 1.);
+}`;
+const HAIL_VS = PARTICLE_COMMON + /* glsl */`
+varying float vA; varying vec2 vUV;
+void main(){
+  vec2 xz0 = (aSeed.xy - 0.5) * uDomain * 0.9;
+  vec4 cl = cloudAt(xz0);
+  float top = max(cl.b, 700.), hg = max(groundH(xz0), uSeaLevel) + 1.;
+  float T1 = (top - hg) / 320., P = T1 + 3.;
+  float t = fract(uTime / P + aSeed.z) * P, y, fade = 1.;
+  vec2 xz = xz0;
+  if (t < T1) y = top - t * 320.;
+  else {
+    float tb = t - T1, b = 0.;
+    if (tb < 0.6) { float u = tb / 0.6; b = 72. * u * (1. - u); }
+    else if (tb < 0.95) { float u = (tb - 0.6) / 0.35; b = 24. * u * (1. - u); }
+    else if (tb < 1.15) { float u = (tb - 0.95) / 0.2; b = 8. * u * (1. - u); }
+    y = hg + b;
+    xz += vec2(cos(aSeed.w * 40.), sin(aSeed.w * 40.)) * min(tb, 1.15) * 10.;
+    fade = 1. - smoothstep(2.1, 3., tb);   // lies briefly, then melts
+  }
+  float vis = step(aSeed.w, cl.g * uHailAmt * 1.3) * fade;
+  if (vis < 0.01) { ${offscreen} }
+  vec3 Pp = vec3(xz.x, y, xz.y);
+  float s = max(3., length(uCamPos - Pp) * 0.0013);
+  Pp += (camRight() * position.x + camUp() * position.y) * s;
+  vA = vis; vUV = position.xy;
+  gl_Position = projectionMatrix * viewMatrix * vec4(Pp, 1.);
+}`;
+const FLAKE_FS = /* glsl */`
+uniform vec3 uTintC; varying float vA; varying vec2 vUV;
+void main(){
+  float d = length(vUV); if (d > 1.) discard;
+  vec3 c = mix(uTintC * 0.85, uTintC, step(d, 0.55));
+  gl_FragColor = vec4(c * (uLightCol * 0.65 + uShadowCol * 0.6) + p_lightning * uFlash * 0.7, vA * 0.9);
+}`;
+const SPLASH_VS = PARTICLE_COMMON + /* glsl */`
+varying float vA; varying vec2 vUV; varying float vPh;
+void main(){
+  float per = 0.35 + aSeed.z * 0.3, cyc = uTime / per + aSeed.w * 7.13, ph = fract(cyc), n = floor(cyc);
+  vec2 xz = (vec2(hash12(aSeed.xy * 91.7 + n), hash12(aSeed.yx * 53.1 + n * 1.7)) - 0.5) * uDomain * 0.95;
+  vec4 cl = cloudAt(xz);
+  vec4 g = bilerp(tGround, xz);
+  float surf = max(g.r + g.g + g.b, uSeaLevel);
+  float vis = step(fract(aSeed.w * 13.7), cl.g * 1.3) * smoothstep(0.4, 1.6, airTemp(surf)) * uRainOn;
+  if (vis < 0.01) { ${offscreen} }
+  float s = (5. + 13. * ph) * max(1., length(uCamPos - vec3(xz.x, surf, xz.y)) / 4000.);
+  vec3 P = vec3(xz.x, surf + 0.5, xz.y) + camRight() * position.x * s + vec3(0., 1., 0.) * (position.y * 0.5 + 0.5) * s * 0.7;
+  vA = vis; vUV = position.xy; vPh = ph;
+  gl_Position = projectionMatrix * viewMatrix * vec4(P, 1.);
+}`;
+const SPLASH_FS = /* glsl */`
+varying float vA; varying vec2 vUV; varying float vPh;
+void main(){
+  float v = vUV.y * 0.5 + 0.5;
+  float d = length(vec2(vUV.x, (v - 0.1) * 2.));
+  float crown = step(0.62, d) * step(d, 0.86) * step(0.1, v) + step(abs(vUV.x), 0.12) * step(v, 0.9 - vPh * 0.8) * step(0.5, vPh);
+  if (crown < 0.5) discard;
+  gl_FragColor = vec4(p_foam * (uLightCol * 0.6 + uShadowCol * 0.6) + p_lightning * uFlash * 0.6, vA * (1. - vPh) * 0.85);
+}`;
+const PUFF_FS = /* glsl */`
+varying float vA; varying vec2 vUV; varying vec3 vC;
+void main(){
+  float d = length(vUV); if (d > 1.) discard;
+  gl_FragColor = vec4(vC * mix(0.88, 1., step(d, 0.6)), vA * mix(0.55, 1., step(d, 0.6)));
+}`;
+const DUST_VS = PARTICLE_COMMON + /* glsl */`
+varying float vA; varying vec2 vUV; varying vec3 vC;
+void main(){
+  float life = 5., cyc = uTime / life + aSeed.z, ph = fract(cyc), n = floor(cyc);
+  vec2 xz0 = (aSeed.xy - 0.5) * uDomain * 0.8 + (vec2(hash12(aSeed.xy * 17.3 + n), hash12(aSeed.yx * 29.1 + n)) - 0.5) * 600.;
+  vec4 g = bilerp(tGround, xz0); float hg = g.r + g.g;
+  vec4 s = texelFetch(tSurf, cellOf(xz0), 0);
+  float dry = (1. - smoothstep(0.04, 0.2, s.r)) * (1. - step(0.02, s.g)) * step(uSeaLevel + 1., hg) * (1. - smoothstep(0.25, 0.55, s.a)) * smoothstep(0.1, 0.5, g.g) * step(g.b, 0.005);
+  vec2 w = windAt(xz0).xy; float ws = length(w);
+  float vis = dry * smoothstep(8., 15., ws) * step(aSeed.w, 0.85);
+  if (vis < 0.01) { ${offscreen} }
+  vec2 xz = xz0 + w * ph * life * 9.;
+  float y = max(groundH(xz), hg) + 3. + sin(ph * 3.1416) * (8. + 26. * aSeed.w) + ph * 15.;
+  vec3 P = vec3(xz.x, y, xz.y);
+  float sz = max(7. + 10. * aSeed.w, length(uCamPos - P) * 0.0018);
+  P += (camRight() * position.x + camUp() * position.y) * sz;
+  float sandy = 1. - smoothstep(10., 25., hg - uSeaLevel);
+  vC = particleLight(mix(p_soil, p_sand, sandy));
+  vA = sin(ph * 3.1416) * vis * 0.65; vUV = position.xy;
+  gl_Position = projectionMatrix * viewMatrix * vec4(P, 1.);
+}`;
+const SPRAY_VS = PARTICLE_COMMON + /* glsl */`
+varying float vA; varying vec2 vUV; varying vec3 vC;
+void main(){
+  float life = 3.5, cyc = uTime / life + aSeed.z, ph = fract(cyc), n = floor(cyc);
+  float ang = (aSeed.x + hash12(aSeed.xy * 7.7 + n) * 0.1) * 6.2832, r = ${(DOMAIN * CONFIG.ISLAND_R).toFixed(1)} * (0.9 + 0.38 * aSeed.y);
+  vec2 xz0 = vec2(cos(ang), sin(ang)) * r;
+  float depth = uSeaLevel - groundH(xz0);
+  float shore = step(0.3, depth) * (1. - smoothstep(10., 45., depth));
+  vec2 w = windAt(xz0).xy;
+  float vis = shore * smoothstep(10., 19., length(w)) * step(aSeed.w, 0.9);
+  if (vis < 0.01) { ${offscreen} }
+  vec2 xz = xz0 + w * ph * life * 8.;
+  vec3 P = vec3(xz.x, uSeaLevel + 2. + sin(ph * 3.1416) * (6. + 18. * aSeed.z) + ph * 12., xz.y);
+  float sz = max(10. + 18. * ph, length(uCamPos - P) * 0.002);
+  P += (camRight() * position.x + camUp() * position.y) * sz;
+  vC = particleLight(mix(p_foam, p_cloudShade, 0.25));
+  vA = (1. - ph) * smoothstep(0., 0.1, ph) * vis * 0.55; vUV = position.xy;
+  gl_Position = projectionMatrix * viewMatrix * vec4(P, 1.);
+}`;
+const SMOKE_VS = PARTICLE_COMMON + /* glsl */`
+varying float vA; varying vec2 vUV; varying vec3 vC;
+void main(){
+  int k = int(aSeed.x * 3.999); vec4 e = uSmoke[k];
+  if (e.w < 0.01) { ${offscreen} }
+  float ph = fract(uTime / 7. + aSeed.z);
+  vec2 w = windAt(e.xz).xy;
+  vec3 P = e.xyz + vec3(w.x, 0., w.y) * ph * 28. + vec3(0., ph * 230., 0.) + vec3(aSeed.y - 0.5, 0., aSeed.w - 0.5) * 30. * ph;
+  float sz = 10. + 45. * ph;
+  P += (camRight() * position.x + camUp() * position.y) * sz;
+  vC = particleLight(p_smoke);
+  vA = (1. - ph) * smoothstep(0., 0.08, ph) * e.w * 0.7; vUV = position.xy;
+  gl_Position = projectionMatrix * viewMatrix * vec4(P, 1.);
+}`;
+
+// ---- rainbow: banded arc at 42° from the antisolar point, only where rain is in view ---
+const RAINBOW_VS = /* glsl */`varying vec3 vP; void main(){ vP = cameraPosition + position; gl_Position = projectionMatrix * viewMatrix * vec4(vP, 1.); }`;
+const RAINBOW_FS = /* glsl */`
+uniform float uRainbow; varying vec3 vP;
+void main(){
+  vec3 d = normalize(vP - uCamPos);
+  float deg = degrees(acos(clamp(dot(d, -uSunDir), -1., 1.)));
+  float t = (deg - 40.4) / 2.4, t2 = (53.6 - deg) / 3.2;
+  float inner = step(0., t) * step(t, 1.), outer = step(0., t2) * step(t2, 1.);
+  if (inner + outer < 0.5) discard;
+  float tt = inner > 0.5 ? t : t2;
+  int b = int(clamp(tt * 6., 0., 5.));
+  vec3 c = b == 0 ? p_bow6 : b == 1 ? p_bow5 : b == 2 ? p_bow4 : b == 3 ? p_bow3 : b == 4 ? p_bow2 : p_bow1;
+  float pr = 0.;
+  for (int k = 1; k <= 4; k++) { vec3 far = uCamPos + d * (float(k) * 2400.); pr = max(pr, cloudAt(far.xz).g); }
+  float rain = smoothstep(0.05, 0.3, pr);
+  float a = uRainbow * rain * (inner > 0.5 ? 0.5 : 0.18) * smoothstep(-0.02, 0.06, d.y + 0.03);
+  gl_FragColor = vec4(c, a);
+}`;
+
+// ---- god rays: beams along the sunlight through gaps in storm cloud -------------------
+const RAYS_VS = /* glsl */`
+attribute vec4 aSeed; uniform float uRays;
+varying float vA; varying vec2 vUV;
+void main(){
+  vec2 top = (aSeed.xy - 0.5) * uDomain * 1.3;
+  vec4 c = cloudAt(top);
+  float around = (cloudAt(top + vec2(700., 0.)).r + cloudAt(top - vec2(700., 0.)).r + cloudAt(top + vec2(0., 700.)).r + cloudAt(top - vec2(0., 700.)).r) * 0.25;
+  float gap = 1. - smoothstep(0.15, 0.42, c.r);
+  float vis = gap * smoothstep(0.45, 0.8, around) * smoothstep(0.08, 0.25, uSunDir.y) * uRays;
+  if (vis < 0.01) { ${offscreen} }
+  vec3 dir = -uSunDir;
+  vec3 S = vec3(top.x, max(c.b, 700.), top.y);
+  float L = (S.y + 50.) / max(-dir.y, 0.1);
+  float t = position.y * 0.5 + 0.5;
+  vec3 P = S + dir * L * t;
+  vec3 side = normalize(cross(dir, normalize(uCamPos - P)));
+  P += side * position.x * (160. + 220. * aSeed.z) * (1. + t * 0.4);
+  vA = vis; vUV = vec2(position.x, t);
+  gl_Position = projectionMatrix * viewMatrix * vec4(P, 1.);
+}`;
+const RAYS_FS = /* glsl */`
+varying float vA; varying vec2 vUV;
+void main(){
+  float x = 1. - abs(vUV.x);
+  float band = step(0.3, x) * 0.55 + step(0.7, x) * 0.45;
+  float fall = step(vUV.y, 0.85) * 0.5 + 0.5 * step(vUV.y, 0.55);
+  gl_FragColor = vec4(p_sun * uLightCol * band * fall * vA * 0.16, 1.);
+}`;
+
+function quadInstances(count, label) {
+  const g = new THREE.InstancedBufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 1, -1, 0, -1, 1, 0, 1, 1, 0]), 3));
+  g.setIndex([0, 1, 2, 2, 1, 3]);
+  const rng = MASTER.fork(label), a = new Float32Array(count * 4);
+  for (let i = 0; i < a.length; i++) a[i] = rng.next();
+  g.setAttribute('aSeed', new THREE.InstancedBufferAttribute(a, 4));
+  g.instanceCount = count; g.userData.max = count;
+  return g;
+}
+const FX = {
+  init(scene) {
+    this.u = { uHailAmt: { value: 0 }, uRainOn: { value: 0 }, uSmoke: { value: Flora.smoke }, uRainbow: { value: 0 }, uRays: { value: 0 } };
+    const pflags = { transparent: true, depthWrite: false };
+    this.clouds = [];
+    const cg = new THREE.PlaneGeometry(CLOUD_DOMAIN, CLOUD_DOMAIN, 128, 128).rotateX(-Math.PI / 2);
+    for (let k = 0; k < CLOUD_SLICES; k++) {
+      const m = new THREE.Mesh(cg, makeMat(CLOUD_VS, CLOUD_SLICE_FS, { uSlice: { value: k / (CLOUD_SLICES - 1) } }, { side: THREE.DoubleSide }));
+      m.frustumCulled = false; m.renderOrder = 1; scene.add(m); this.clouds.push(m);
+    }
+    const sys = (count, label, vs, fs, extra = {}, flags = pflags, order = 5) => {
+      const m = new THREE.Mesh(quadInstances(count, label), makeMat(vs, fs, Object.assign({}, this.u, extra), flags));
+      m.frustumCulled = false; m.renderOrder = order; scene.add(m); return m;
+    };
+    this.rays = sys(28, 'rays', RAYS_VS, RAYS_FS, {}, { transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }, 2);
+    this.rain = sys(CONFIG.RAIN, 'rain', RAIN_VS, RAIN_FS);
+    this.snow = sys(CONFIG.SNOW, 'snow', SNOWP_VS, FLAKE_FS, { uTintC: U.p_snow });
+    this.hail = sys(CONFIG.HAIL, 'hail', HAIL_VS, FLAKE_FS, { uTintC: U.p_ice });
+    this.splash = sys(CONFIG.SPLASH, 'splash', SPLASH_VS, SPLASH_FS);
+    this.dust = sys(CONFIG.DUST, 'dust', DUST_VS, PUFF_FS);
+    this.spray = sys(CONFIG.SPRAY, 'spray', SPRAY_VS, PUFF_FS);
+    this.smokeM = sys(CONFIG.SMOKE, 'smoke', SMOKE_VS, PUFF_FS);
+    this.particles = [this.rain, this.snow, this.hail, this.splash, this.dust, this.spray, this.smokeM];
+    this.rainbow = new THREE.Mesh(new THREE.SphereGeometry(3200, 48, 24), makeMat(RAINBOW_VS, RAINBOW_FS, this.u, { transparent: true, depthWrite: false, side: THREE.BackSide }));
+    this.rainbow.frustumCulled = false; this.rainbow.renderOrder = 8; scene.add(this.rainbow);
+  },
+  setScale(f) { for (const m of this.particles) m.geometry.instanceCount = Math.floor(m.geometry.userData.max * f); },
+  update(camera) {
+    const A = Atmo;
+    this.u.uRainOn.value = A.precipMax > 0.01 ? 1 : 0;
+    this.u.uHailAmt.value = A.hail;
+    for (const m of [this.rain, this.snow, this.splash]) m.visible = A.precipMax > 0.01;
+    this.hail.visible = A.hail > 0.01;
+    this.smokeM.visible = Flora.smoke.some(s => s.w > 0);
+    this.dust.visible = A.windSpeed > 7; this.spray.visible = A.windSpeed > 9;
+    // rainbow: sun low (<42°) and behind the camera, rain falling in front of it, sun not hidden
+    const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd);
+    const sun = U.uSunDir.value;
+    let rainAhead = 0;
+    for (let k = 1; k <= 8; k++) { const p = camera.position.clone().addScaledVector(fwd, k * 1500); rainAhead = Math.max(rainAhead, Layers.cloudSample(p.x, p.z, 1)); }
+    const sunlit = 1 - smoothstep(0.35, 0.8, Layers.cloudSample(camera.position.x, camera.position.z, 0));
+    const sunBehind = smoothstep(0.1, 0.5, -(fwd.x * sun.x + fwd.y * sun.y + fwd.z * sun.z));
+    const sunLow = smoothstep(0.0, 0.08, sun.y) * (1 - smoothstep(0.55, 0.67, sun.y));
+    const target = sunBehind * sunLow * sunlit * smoothstep(0.08, 0.3, rainAhead);
+    this.u.uRainbow.value = approach(this.u.uRainbow.value, target, 1 / 60, 2.5);
+    this.rainbow.visible = this.u.uRainbow.value > 0.01;
+    this.u.uRays.value = approach(this.u.uRays.value, smoothstep(0.45, 0.85, A.cover) * (A.storm > 0.2 || A.phase === 'clearing' || A.phase === 'rain' ? 1 : 0.4), 1 / 60, 3);
+  },
+};
+
+// ---- composite: ink outlines from depth (Laplacian of 1/z catches silhouettes and
+// creases), thinner and lighter with distance; then haze and ground/sea fog that forms
+// where the near-ground air has cooled to its dew point. Writes depth for the FX pass.
+const POST_VS = /* glsl */`varying vec2 vUv; void main(){ vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0., 1.); }`;
+const POST_FS = /* glsl */`
+uniform sampler2D tColor, tDepth; uniform vec2 uPx; uniform float uNear, uFar, uFogOn, uPrecipView, uFogDeck;
+uniform mat4 uInvProj, uCamWorld;
+varying vec2 vUv;
+float linZ(float d){ float z = d * 2. - 1.; return 2. * uNear * uFar / (uFar + uNear - z * (uFar - uNear)); }
+float invZ(vec2 uv){ return 1. / linZ(texture(tDepth, uv).r); }
+void main(){
+  float d = texture(tDepth, vUv).r;
+  vec3 col = texture(tColor, vUv).rgb;
+  float z = linZ(d);
+  float k = smoothstep(1800., 12000., z);
+  float w = mix(1.7, 0.8, k);
+  float ic = 1. / z;
+  float il = invZ(vUv - vec2(uPx.x * w, 0.)), ir = invZ(vUv + vec2(uPx.x * w, 0.));
+  float id = invZ(vUv - vec2(0., uPx.y * w)), iu = invZ(vUv + vec2(0., uPx.y * w));
+  float lap = max(abs(il + ir - 2. * ic), abs(iu + id - 2. * ic)) / ic;
+  float grad = (abs(ir - il) + abs(iu - id)) * 0.5 / ic;
+  float sil = smoothstep(0.05, 0.12, lap);
+  float crease = smoothstep(0.0014 + grad * 0.6, 0.0028 + grad * 0.85, lap) * (1. - k) * 0.5;
+  float line = max(sil, crease) * mix(0.92, 0.32, k);
+  col = mix(col, p_ink * mix(1., 1.9, k), line);
+  bool sky = d > 0.999995;
+  vec4 vp = uInvProj * vec4(vUv * 2. - 1., d * 2. - 1., 1.); vp /= vp.w;
+  vec3 wp = (uCamWorld * vec4(vp.xyz, 1.)).xyz;
+  vec3 ray = wp - uCamPos; float dist = length(ray); vec3 rd = ray / max(dist, 1e-3);
+  if (sky) dist = 30000.;
+  float haze = 1. - exp(-dist * (1.0e-5 + 1.1e-5 * uStorm + 0.8e-5 * uCover * uRH + 1.4e-5 * uPrecipView));
+  if (!sky) col = mix(col, uFogCol, haze);
+  if (uFogOn > 0.01) {
+    // march only the part of the view ray that lies below the fog top, so a thin layer hugging
+    // the ground is sampled finely even when the camera is high above it
+    float maxD = min(dist, 20000.), fogTop = uSeaLevel + 650.;
+    float tA = 0., tB = maxD;
+    if (rd.y < -1e-4) tA = clamp((fogTop - uCamPos.y) / rd.y, 0., maxD); else if (uCamPos.y > fogTop) tA = maxD;
+    if (rd.y > 1e-4) tB = clamp((fogTop - uCamPos.y) / rd.y, 0., maxD);
+    float seg = max(tB - tA, 0.), od = 0.;
+    for (int i = 0; i < 8; i++) {
+      vec3 p = uCamPos + rd * (tA + (float(i) + 0.5) / 8. * seg);
+      ivec2 c = cellOf(p.xz);
+      vec4 g = texelFetch(tGround, c, 0); float gh = g.r + g.g;
+      float s = texelFetch(tSurf, c, 0).b;
+      float land = step(uSeaLevel, gh);
+      float above = max(p.y - max(gh, uSeaLevel), 0.);
+      float tdz = uDew - ${CONFIG.DEW_LAPSE} * max(gh, 0.);
+      float valley = smoothstep(1.6, -0.2, s - tdz) * exp(-above / 120.) * land;
+      float seaF = uSeaFog * exp(-max(p.y - uSeaLevel, 0.) / 170.) * (1. - land);
+      float deck = uFogDeck * exp(-above / 210.);
+      od += (valley * 0.004 + seaF * 0.003 + deck * 0.0035) * seg / 8.;
+    }
+    float fa = 1. - exp(-od * uFogOn);
+    fa = floor(fa * 5. + 0.5) / 5. * 0.6 + fa * 0.4;                      // gently banded, like painted mist
+    vec3 fc = mix(uFogCol, p_cloud * (0.3 + 0.7 * uDay) * mix(vec3(1.), uLightCol, 0.35), 0.6) + p_lightning * uFlash * 0.3;
+    col = mix(col, fc, fa);
+  }
+  col += p_lightning * uFlash * 0.06;
+  vec2 q = vUv - 0.5;
+  col *= 1. - 0.16 * pow(length(q) * 1.35, 2.6);
+  gl_FragColor = vec4(col, 1.);
+  gl_FragDepth = d;
+}`;
+
+let renderer, camera;
+const Render = {
+  scale: 1, valleyFog: 0,
+  init() {
+    renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', stencil: false });
+    renderer.autoClear = false;
+    renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+    document.body.prepend(renderer.domElement);
+    camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, CONFIG.NEAR, CONFIG.FAR);
+    this.opaque = new THREE.Scene(); this.fx = new THREE.Scene();
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(40000, 48, 24), makeMat(SKY_VS, SKY_FS, {}, { side: THREE.BackSide, depthWrite: false, depthTest: false }));
+    sky.frustumCulled = false; sky.renderOrder = -10; this.opaque.add(sky);
+    const tg = buildTerrainGeometry();
+    this.terrain = new THREE.Mesh(tg, makeMat(TERRAIN_VS, TERRAIN_FS)); this.terrain.frustumCulled = false; this.opaque.add(this.terrain);
+    this.ocean = new THREE.Mesh(buildOceanGeometry(), makeMat(OCEAN_VS, OCEAN_FS)); this.ocean.frustumCulled = false; this.opaque.add(this.ocean);
+    Shadows.init();
+    const ts = new THREE.Mesh(tg, makeDepthMat(TERRAIN_VS)); ts.frustumCulled = false; Shadows.scene.add(ts);
+    Flora.init(this.opaque, Shadows.scene);
+    FX.init(this.fx); Lightning.init(this.fx);
+    this.postU = { tColor: { value: null }, tDepth: { value: null }, uPx: { value: new THREE.Vector2() }, uNear: { value: CONFIG.NEAR }, uFar: { value: CONFIG.FAR },
+      uInvProj: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() }, uFogOn: { value: 0 }, uFogDeck: { value: 0 }, uPrecipView: U.uPrecipView };
+    this.postMat = new THREE.ShaderMaterial({ uniforms: Object.assign({}, U, this.postU), vertexShader: POST_VS, fragmentShader: RENDER_COMMON + POST_FS, depthTest: true, depthWrite: true, depthFunc: THREE.AlwaysDepth });
+    this.postScene = new THREE.Scene(); const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.postMat); q.frustumCulled = false; this.postScene.add(q);
+    this.postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    addEventListener('resize', () => this.resize());
+    this.resize();
+  },
+  resize() {
+    const w = innerWidth, h = innerHeight;
+    const pr = clamp(Math.min(devicePixelRatio || 1, Math.sqrt(1920 * 1080 * 1.05 / (w * h))), 0.5, 2);
+    renderer.setPixelRatio(pr); renderer.setSize(w, h);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+    const W = Math.max(2, Math.floor(w * pr * this.scale)), H = Math.max(2, Math.floor(h * pr * this.scale));
+    if (this.sceneRT) this.sceneRT.dispose();
+    const dt = new THREE.DepthTexture(W, H, THREE.UnsignedIntType); dt.minFilter = dt.magFilter = THREE.NearestFilter;
+    this.sceneRT = new THREE.WebGLRenderTarget(W, H, { depthTexture: dt, depthBuffer: true, type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+    this.postU.tColor.value = this.sceneRT.texture; this.postU.tDepth.value = dt; this.postU.uPx.value.set(1 / W, 1 / H);
+  },
+  setScale(s) { if (s !== this.scale) { this.scale = s; this.resize(); } },
+  frame() {
+    U.uCamPos.value.copy(camera.position);
+    Shadows.render(renderer);
+    renderer.setRenderTarget(this.sceneRT); renderer.setClearColor(0x000000, 1); renderer.clear(true, true, false);
+    renderer.render(this.opaque, camera);
+    this.postU.uInvProj.value.copy(camera.projectionMatrixInverse); this.postU.uCamWorld.value.copy(camera.matrixWorld);
+    const fogPot = Math.max(Atmo.seaFog, Atmo.fog, smoothstep(3.5, 0.6, Atmo.T0 - Atmo.dew - (SIMU.uNightCool.value * 3)) * smoothstep(7, 2.5, Atmo.windSpeed));
+    this.postU.uFogDeck.value = Atmo.fog;
+    this.valleyFog = fogPot; this.postU.uFogOn.value = approach(this.postU.uFogOn.value, fogPot, 1 / 60, 3);
+    renderer.setRenderTarget(null); renderer.clear(true, true, false);
+    renderer.render(this.postScene, this.postCam);
+    renderer.render(this.fx, camera);
+  },
+};
+
+/* =====================================================================================
+   AUDIO — a generated soundscape (Web Audio API, no samples). Looped noise buffers made
+   from the seeded generator feed filters: wind (band-passed brown noise whose pitch and
+   loudness follow wind speed and gusts, plus a whistle in gales), rain hiss (band-limited
+   white noise following rain intensity in view), surf (low-passed noise swelling with the
+   waves, louder when the camera is near the shore) and thunder: a sharp crack when close,
+   a low rolling rumble when far, scheduled at distance / 343 m/s. Starts on first click.
+   ===================================================================================== */
+const Sound = {
+  ctx: null, muted: false, started: false,
+  start() {
+    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    const ctx = this.ctx = new AC();
+    this.rng = new RNG(hashString('audio|' + (Atmo.seed || 'squall')));
+    this.master = ctx.createGain(); this.master.gain.value = this.muted ? 0 : 0.85;
+    const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
+    this.master.connect(comp); comp.connect(ctx.destination);
+    this.white = this.noise('white'); this.brown = this.noise('brown'); this.pink = this.noise('pink');
+    const loop = (buf, nodes) => { const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true; s.loopStart = 0; s.loopEnd = buf.duration;
+      let prev = s; for (const n of nodes) { prev.connect(n); prev = n; } prev.connect(this.master); s.start(0, this.rng.next() * buf.duration); return s; };
+    const bp = (f, q) => { const b = ctx.createBiquadFilter(); b.type = 'bandpass'; b.frequency.value = f; b.Q.value = q; return b; };
+    const filt = (type, f, q = 0.7) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; return b; };
+    const gain = v => { const g = ctx.createGain(); g.gain.value = v; return g; };
+    this.windF = bp(300, 0.7); this.windG = gain(0); loop(this.brown, [this.windF, this.windG]);
+    this.whistleF = bp(900, 9); this.whistleG = gain(0); loop(this.pink, [this.whistleF, this.whistleG]);
+    this.rainHP = filt('highpass', 1100); this.rainLP = filt('lowpass', 7500); this.rainG = gain(0); loop(this.white, [this.rainHP, this.rainLP, this.rainG]);
+    this.surfF = filt('lowpass', 480); this.surfG = gain(0); loop(this.brown, [this.surfF, this.surfG]);
+    this.started = true;
+  },
+  noise(type) {
+    const ctx = this.ctx, len = Math.floor(ctx.sampleRate * 4), buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0), r = this.rng;
+    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, last = 0;
+    for (let i = 0; i < len; i++) {
+      const w = r.next() * 2 - 1;
+      if (type === 'white') d[i] = w * 0.5;
+      else if (type === 'brown') { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.2; }
+      else { b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759; b2 = 0.969 * b2 + w * 0.153852; b3 = 0.8665 * b3 + w * 0.3104856; b4 = 0.55 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.016898; d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11; b6 = w * 0.115926; }
+    }
+    // cross-fade the ends so the loop is seamless
+    const f = Math.floor(ctx.sampleRate * 0.05);
+    for (let i = 0; i < f; i++) { const t = i / f; d[i] = d[i] * t + d[len - f + i] * (1 - t); }
+    return buf;
+  },
+  setMuted(m) { this.muted = m; if (this.master) this.master.gain.setTargetAtTime(m ? 0 : 0.85, this.ctx.currentTime, 0.1); },
+  update(camDistToShore) {
+    if (!this.started) return;
+    const t = this.ctx.currentTime, A = Atmo;
+    const gustNow = 1 + 0.25 * Math.sin(U.uTime.value * 0.8) * Math.sin(U.uTime.value * 0.31 + 2);
+    const ws = A.windSpeed * gustNow;
+    this.windF.frequency.setTargetAtTime(120 + ws * 30, t, 0.25);
+    this.windG.gain.setTargetAtTime(Math.min(0.85, Math.pow(ws / 24, 1.3) * 0.55 + 0.015), t, 0.3);
+    this.whistleF.frequency.setTargetAtTime(650 + ws * 38, t, 0.4);
+    this.whistleG.gain.setTargetAtTime(smoothstep(12, 26, ws) * 0.07, t, 0.4);
+    const cold = smoothstep(2, -1, A.T0);
+    const rain = A.precipView * (1 - 0.85 * cold);
+    this.rainG.gain.setTargetAtTime(Math.min(0.6, rain * 0.55), t, 0.4);
+    this.rainLP.frequency.setTargetAtTime(5000 + rain * 4000, t, 0.5);
+    const prox = 1 - smoothstep(1500, 9000, camDistToShore);
+    const swell = Math.pow(0.5 + 0.5 * Math.sin(U.uTime.value * Math.PI * 2 / 8.5), 2);
+    this.surfG.gain.setTargetAtTime((0.04 + 0.025 * A.waveAmp) * prox * (0.35 + 0.65 * swell), t, 0.25);
+    this.surfF.frequency.setTargetAtTime(380 + A.waveAmp * 40, t, 0.5);
+  },
+  thunder(dist) {
+    if (!this.started || this.ctx.state !== 'running') return;
+    const ctx = this.ctx, r = this.rng, t0 = ctx.currentTime + dist / 343;   // sound travels at 343 m/s
+    const near = 1 - smoothstep(700, 4500, dist), vol = 1.5 / (1 + dist / 1600);
+    if (near > 0.03) {
+      const s = ctx.createBufferSource(); s.buffer = this.white;
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 700;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol * near * 1.3, t0 + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.4 + near * 0.3);
+      s.connect(hp); hp.connect(g); g.connect(this.master); s.start(t0, r.next() * 3); s.stop(t0 + 1);
+    }
+    const s2 = ctx.createBufferSource(); s2.buffer = this.brown;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = lerp(900, 150, smoothstep(500, 9000, dist)); lp.Q.value = 0.9;
+    const g2 = ctx.createGain(); const far = smoothstep(800, 9000, dist);
+    g2.gain.setValueAtTime(0, t0);
+    g2.gain.linearRampToValueAtTime(vol * (0.6 + 0.4 * near), t0 + 0.06 + far * 0.6);
+    let tt = t0 + 0.3 + far * 0.6;
+    const rolls = 3 + r.int(4);
+    for (let k = 0; k < rolls; k++) { tt += r.range(0.35, 1.0) * (1 + far); g2.gain.setTargetAtTime(vol * r.range(0.25, 0.85) * (1 - k / (rolls + 1)), tt, 0.18 + far * 0.3); }
+    const end = tt + 1.5 + far * 2.5;
+    g2.gain.setTargetAtTime(0, tt + 0.3, 0.6 + far);
+    s2.connect(lp); lp.connect(g2); g2.connect(this.master); s2.start(t0, r.next() * 2); s2.stop(end + 2);
+  },
+};
+
+/* =====================================================================================
+   UI — the collapsible control panel: time of day, time speed, season, temperature /
+   humidity / wind sliders (the atmosphere eases toward them), weather buttons that steer
+   the front model, seed + new island, erosion reset / speed / pause, a debug overlay
+   that colours the terrain by one layer, the readout, and the mute button.
+   ===================================================================================== */
+const $ = id => document.getElementById(id);
+const compass = deg => ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'][Math.round(((deg % 360) + 360) % 360 / 22.5) % 16];
+const UI = {
+  t: 0, dragTod: false,
+  init() {
+    $('panelHead').onclick = () => $('panel').classList.toggle('collapsed');
+    const bind = (id, fn, fmt) => { const el = $(id); const f = () => { fn(parseFloat(el.value)); if (fmt) $(id + 'V').textContent = fmt(parseFloat(el.value)); }; el.addEventListener('input', f); f(); };
+    const tod = $('tod');
+    tod.addEventListener('pointerdown', () => this.dragTod = true);
+    addEventListener('pointerup', () => this.dragTod = false);
+    tod.addEventListener('input', () => { Atmo.hour = parseFloat(tod.value); });
+    $('tspeed').onchange = e => Atmo.timeSpeed = parseFloat(e.target.value);
+    $('season').onchange = e => Atmo.setSeason(e.target.value);
+    bind('tempOff', v => Atmo.userT = v, v => (v > 0 ? '+' : '') + v.toFixed(1) + '°');
+    bind('humBias', v => Atmo.userRH = v, v => (v > 0 ? '+' : '') + v + '%');
+    bind('windMul', v => Atmo.userWind = v, v => Math.round(v * 100) + '%');
+    bind('windDir', v => Atmo.userDirFrom = v, v => compass(v));
+    bind('erodeSpeed', v => Sim.erodeSpeed = v, v => v.toFixed(1) + '×');
+    document.querySelectorAll('#wxBtns button').forEach(b => b.onclick = () => { Atmo.setWeather(b.dataset.wx); this.refreshButtons(); });
+    $('seed').value = new URLSearchParams(location.hash.slice(1)).get('seed') || 'squall';
+    $('seed').addEventListener('keydown', e => { if (e.key === 'Enter') newIsland($('seed').value.trim() || 'squall'); });
+    $('newIsland').onclick = () => newIsland($('seed').value.trim() || 'squall');
+    $('randSeed').onclick = () => { const w = ['gale', 'reef', 'tern', 'kelp', 'brine', 'cairn', 'fjord', 'puffin', 'squall', 'tide', 'drift', 'basalt']; const s = w[Math.floor(Math.random() * w.length)] + '-' + Math.floor(Math.random() * 9999); $('seed').value = s; newIsland(s); };
+    $('resetErosion').onclick = () => { Layers.upload(World.island, Atmo.T0); warmUp(20); };
+    $('pauseErosion').onclick = () => { Sim.paused = !Sim.paused; $('pauseErosion').classList.toggle('on', Sim.paused); $('pauseErosion').textContent = Sim.paused ? 'Erosion paused' : 'Pause erosion'; };
+    $('rainTest').onclick = () => { Atmo.setWeather('storm'); $('erodeSpeed').value = 3; $('erodeSpeed').dispatchEvent(new Event('input')); this.refreshButtons(); };
+    $('quality').onclick = () => { Quality.cycle(); };
+    $('debugLayer').onchange = e => { U.uDebug.value = parseFloat(e.target.value); const on = U.uDebug.value < 0.5; Flora.grass.visible = Flora.tree.visible = Flora.rock.visible = on; };
+    $('mute').onclick = e => { e.stopPropagation(); if (!Sound.started) { Sound.start(); Sound.setMuted(false); } else Sound.setMuted(!Sound.muted); this.refreshMute(); };
+    const first = () => { if (!Sound.started) { Sound.start(); this.refreshMute(); } $('hint').textContent = 'Drag to orbit · scroll to zoom'; };
+    addEventListener('pointerdown', first, { once: true });
+    this.refreshButtons();
+  },
+  applyControls() {
+    Atmo.timeSpeed = parseFloat($('tspeed').value); Atmo.setSeason($('season').value);
+    const s = SEASONS[Atmo.seasonKey]; Atmo.base = s.base; Atmo.seaT = s.sea; Atmo.decl = s.decl;
+    ['tempOff', 'humBias', 'windMul', 'windDir', 'erodeSpeed'].forEach(id => $(id).dispatchEvent(new Event('input')));
+    Atmo.windDir = (Atmo.userDirFrom + 180) * Math.PI / 180;
+  },
+  refreshButtons() {
+    document.querySelectorAll('#wxBtns button').forEach(b => b.classList.toggle('on', b.dataset.wx === 'auto' ? Atmo.auto : (!Atmo.auto && Atmo.phase === b.dataset.wx)));
+  },
+  refreshMute() { $('mute').textContent = Sound.started && !Sound.muted ? '🔊 Sound on' : '🔇 Sound off'; },
+  tick(dt) {
+    this.t += dt;
+    if (this.t < 0.25) return;
+    this.t = 0;
+    const A = Atmo, hh = Math.floor(A.hour), mm = Math.floor((A.hour - hh) * 60);
+    if (!this.dragTod) $('tod').value = A.hour.toFixed(2);
+    $('todV').textContent = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+    const peak = World.peak || CONFIG.PEAK;
+    const snowLine = Math.max(0, (A.T0 - 1) / CONFIG.LAPSE);
+    const dirFrom = ((A.windDir * 180 / Math.PI + 180) % 360 + 360) % 360;
+    const breeze = Math.abs(A.breeze) > 0.6 ? (A.breeze > 0 ? ' · sea breeze' : ' · land breeze') : '';
+    const rows = [
+      ['Sea level', A.T0.toFixed(1) + ' °C'], ['Peak (' + Math.round(peak) + ' m)', A.tempAt(peak).toFixed(1) + ' °C'],
+      ['Humidity', Math.round(A.rh * 100) + ' %'], ['Dew point', A.dew.toFixed(1) + ' °C'],
+      ['Cloud base', Math.round(A.lcl) + ' m'], ['Snow line', snowLine > peak ? 'above peak' : Math.round(snowLine) + ' m'],
+      ['Pressure', A.pressure.toFixed(0) + ' hPa'], ['Wind', A.windSpeed.toFixed(1) + ' m/s from ' + compass(dirFrom) + breeze],
+      ['Tide', (U.uSeaLevel.value >= 0 ? '+' : '') + U.uSeaLevel.value.toFixed(1) + ' m'], ['Season', SEASONS[A.seasonKey].name],
+    ];
+    $('readout').innerHTML = `<div class="wn">${A.weatherName()}</div>` + rows.map(([k, v]) => `<span class="k">${k}</span><span>${v}</span>`).join('');
+    $('stats').textContent = `frame ${Quality.avg.toFixed(1)} ms (${Math.round(1000 / Quality.avg)} fps) · quality ${Quality.label()} · ${Quality.cur.steps} sim steps/frame · strikes ${Lightning.strikes}`;
+    this.refreshButtons();
+  },
+};
+
+/* =====================================================================================
+   QUALITY — keeps 60 fps by stepping down, in order: simulation steps per frame, then
+   particle counts, then shadow resolution (and only then grass density / render scale).
+   It steps back up after a stable period, backing off if that immediately fails.
+   ===================================================================================== */
+const Quality = {
+  ladder: (() => {
+    const L = [];
+    for (const s of CONFIG.STEPS) L.push({ steps: s, part: 1, shadow: 2048, grass: 1, scale: 1 });
+    for (const p of [0.6, 0.35]) L.push({ steps: 1, part: p, shadow: 2048, grass: 1, scale: 1 });
+    for (const sh of [1024, 512]) L.push({ steps: 1, part: 0.35, shadow: sh, grass: 1, scale: 1 });
+    L.push({ steps: 1, part: 0.35, shadow: 512, grass: 0.6, scale: 0.85 });
+    L.push({ steps: 1, part: 0.25, shadow: 512, grass: 0.4, scale: 0.7 });
+    return L;
+  })(),
+  level: 0, auto: true, avg: 16.7, timer: 0, stable: 0, backoff: 6, lastUp: -99, clock: 0, manual: -1,
+  get cur() { return this.ladder[this.level]; },
+  label() { return this.auto ? 'auto ' + (this.ladder.length - this.level) + '/' + this.ladder.length : ['high', 'medium', 'low'][this.manual]; },
+  apply(l) {
+    this.level = clamp(l, 0, this.ladder.length - 1);
+    const q = this.cur;
+    FX.setScale(q.part); Shadows.setSize(q.shadow); Flora.setGrassFraction(q.grass); Render.setScale(q.scale);
+  },
+  cycle() {
+    this.manual = this.auto ? 0 : this.manual + 1;
+    if (this.manual > 2) { this.manual = -1; this.auto = true; }
+    else { this.auto = false; this.apply([0, 5, 9][this.manual]); }
+    $('quality').textContent = 'Quality: ' + (this.auto ? 'auto' : ['high', 'medium', 'low'][this.manual]);
+  },
+  update(dt) {
+    this.clock += dt;
+    this.avg = this.avg * 0.93 + dt * 1000 * 0.07;
+    if (!this.auto || this.clock < 3) return;
+    this.timer += dt;
+    if (this.timer < 0.5) return;
+    if (this.avg > 18.3 && this.level < this.ladder.length - 1) {
+      if (this.clock - this.lastUp < 4) this.backoff = Math.min(this.backoff * 2, 120);
+      this.apply(this.level + 1); this.stable = 0; this.avg = 16.7;
+    } else if (this.avg < 17.2) {
+      this.stable += this.timer;
+      if (this.stable > this.backoff && this.level > 0) { this.apply(this.level - 1); this.stable = 0; this.lastUp = this.clock; }
+    } else this.stable = 0;
+    this.timer = 0;
+  },
+};
+
+/* =====================================================================================
+   CAMERA — orbit with the mouse, zoom with the wheel within limits, and a slow drift
+   after ten seconds without input. Kept above the terrain and the sea.
+   ===================================================================================== */
+const Cam = {
+  theta: 2.4, phi: 0.36, dist: 8800, tTheta: 2.4, tPhi: 0.36, tDist: 8800, idle: 0, drift: 0,
+  target: new THREE.Vector3(0, 420, 0),
+  init(dom) {
+    let last = null;
+    dom.addEventListener('pointerdown', e => { last = [e.clientX, e.clientY]; dom.setPointerCapture(e.pointerId); dom.classList.add('drag'); this.idle = 0; });
+    dom.addEventListener('pointermove', e => {
+      if (!last) return;
+      const dx = e.clientX - last[0], dy = e.clientY - last[1]; last = [e.clientX, e.clientY];
+      this.tTheta += dx * 0.005; this.tPhi = clamp(this.tPhi + dy * 0.004, 0.05, 1.35); this.idle = 0;
+    });
+    const up = e => { last = null; dom.classList.remove('drag'); };
+    dom.addEventListener('pointerup', up); dom.addEventListener('pointercancel', up);
+    dom.addEventListener('wheel', e => { e.preventDefault(); this.tDist = clamp(this.tDist * Math.exp(e.deltaY * 0.0011), 2400, 18000); this.idle = 0; }, { passive: false });
+  },
+  update(dt) {
+    this.idle += dt;
+    if (this.idle > 10) {
+      this.drift += dt;
+      this.tTheta += dt * 0.035 * smoothstep(10, 14, this.idle);
+      this.tPhi = approach(this.tPhi, 0.33 + 0.08 * Math.sin(this.drift * 0.05), dt, 10);
+      this.tDist = approach(this.tDist, 8600 + 1800 * Math.sin(this.drift * 0.031), dt, 14);
+    }
+    this.theta = approach(this.theta, this.tTheta, dt, 0.18); this.phi = approach(this.phi, this.tPhi, dt, 0.18); this.dist = approach(this.dist, this.tDist, dt, 0.25);
+    const c = Math.cos(this.phi);
+    const p = camera.position.set(Math.cos(this.theta) * c, Math.sin(this.phi), Math.sin(this.theta) * c).multiplyScalar(this.dist).add(this.target);
+    const g = Layers.ready ? Layers.groundAt(p.x, p.z) : 0;
+    p.y = Math.max(p.y, g + 150, U.uSeaLevel.value + 60);
+    camera.lookAt(this.target);
+    camera.updateMatrixWorld();
+  },
+};
+
+/* =====================================================================================
+   MAIN — boot, island creation and the frame loop.
+   ===================================================================================== */
+const World = { island: null, peak: CONFIG.PEAK, frame: 0, last: 0 };
+function warmUp(steps) {
+  Sim.fields();
+  SIMU.uAtmoDt.value = 0.5;
+  for (let i = 0; i < steps; i++) Sim.step();
+  Layers.readback(0); Layers.readback(1); Layers.readback(2);
+}
+function newIsland(seed) {
+  location.hash = 'seed=' + encodeURIComponent(seed);
+  MASTER = new RNG(hashString(seed));
+  const sr = MASTER.fork('gpu-noise'); U.uSeedOff.value.set(sr.range(0, 300), sr.range(0, 300));
+  Atmo.reset(seed); Atmo.seed = seed; UI.applyControls();
+  Atmo.update(0.0001); Look.update();
+  World.island = generateIsland(seed);
+  Flora.setPlacement(placeFlora(World.island));
+  Layers.upload(World.island, Atmo.T0);
+  Lightning.reset(seed);
+  warmUp(40);
+}
+function afterReadback() {
+  const S = CONFIG.SUMMARY, A = Layers.A, B = Layers.B, sea = U.uSeaLevel.value;
+  let peak = 0, pSum = 0, pN = 0, pMax = 0;
+  for (let i = 0; i < S * S; i++) {
+    peak = Math.max(peak, A[i * 4]);
+    const p = B[i * 4 + 3]; pMax = Math.max(pMax, p);
+    if (A[i * 4] > sea) { pSum += p; pN++; }
+  }
+  World.peak = peak; Atmo.precipIsland = pN ? pSum / pN : 0; Atmo.precipMax = pMax;
+  const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd);
+  let pv = 0, cov = 0, cn = 0;
+  for (let k = 0; k <= 8; k++) { const p = camera.position.clone().addScaledVector(fwd, k * 1500); pv = Math.max(pv, Layers.cloudSample(p.x, p.z, 1) * (1 - k * 0.06)); }
+  for (let j = 0; j < 32; j++) for (let i = 0; i < 32; i++) { const x = ((i + 0.5) / 32 - 0.5) * CLOUD_DOMAIN, z = ((j + 0.5) / 32 - 0.5) * CLOUD_DOMAIN; const w = Math.exp(-(x * x + z * z) / (2 * 5000 * 5000)); cov += Layers.C[(j * 32 + i) * 4] * w; cn += w; }
+  Atmo.coverObs = clamp(cov / cn * 1.15, 0, 1);
+  Atmo.precipView = approach(Atmo.precipView, Math.max(pv, Atmo.precipIsland), 0.5, 1);
+  U.uPrecipView.value = Atmo.precipView;
+}
+function shoreDistance() {
+  const p = camera.position, r = Math.hypot(p.x - World.island.cx, p.z - World.island.cz);
+  return Math.hypot(Math.max(0, r - World.island.R), p.y);
+}
+function loop(now) {
+  const dt = clamp((now - (World.last || now)) / 1000, 0.0001, 0.1);
+  World.last = now; World.frame++;
+  Quality.update(dt);
+  U.uTime.value += dt;
+  Atmo.update(dt); SIMU.uSeaT.value = Atmo.seaT;
+  Look.update();
+  Cam.update(dt);
+  Sim.fields();
+  const steps = Quality.cur.steps;
+  SIMU.uAtmoDt.value = Atmo.simDt / steps;
+  for (let i = 0; i < steps; i++) Sim.step();
+  if (World.frame % 12 === 0) Layers.readback(0);
+  if (World.frame % 12 === 3) Layers.readback(2);
+  if (World.frame % 12 === 6) { Layers.readback(1); afterReadback(); }
+  Lightning.update(dt);
+  Flora.update(dt);
+  FX.update(camera);
+  Render.frame();
+  Sound.update(shoreDistance());
+  UI.tick(dt);
+  requestAnimationFrame(loop);
+}
+function fail(msg) { const m = $('msg'); m.classList.remove('hide'); m.innerHTML = msg; }
+function main() {
+  try {
+    Render.init();
+    if (!renderer.capabilities.isWebGL2) return fail('This diorama needs WebGL 2.');
+    if (!renderer.extensions.has('EXT_color_buffer_float')) return fail('This diorama needs float render targets (EXT_color_buffer_float).');
+    GPU.init(renderer); Layers.init(); Sim.create();
+    Atmo.reset('squall');
+    UI.init(); Cam.init(renderer.domElement);
+    newIsland($('seed').value);
+    Cam.update(0.016);
+    renderer.compile(Render.opaque, camera); renderer.compile(Render.fx, camera); renderer.compile(Shadows.scene, Shadows.sunCam);
+    $('msg').classList.add('hide');
+    window.island = { U, SIMU, Atmo, Layers, Sim, Render, FX, Flora, Lightning, Quality, Cam, World, THREE, get camera() { return camera; }, get renderer() { return renderer; } };  // console handle for inspection
+    requestAnimationFrame(loop);
+  } catch (e) {
+    console.error(e);
+    fail('Something went wrong starting the island:<br><code>' + String(e && e.message || e) + '</code>');
+  }
+}
+main();
+</script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+# Island weather diorama
+
+A single self-contained file named island.html that opens straight from disk in a current desktop Chrome, Firefox or Safari, with no build step, no server and no local assets.
+The island.html file may load Three.js (r160 or later) from a CDN through an import map, and every other line of code, shader, texture and sound must be generated inside the file at runtime.
+The island scene must run at 60 frames per second at 1920x1080 on a mid-range laptop GPU, and anything slower must lower its own quality rather than drop frames.
+The island scene uses one seeded random number generator for everything, so the same seed always gives the same island and the same weather.
+
+## Look
+
+The island scene is cel-shaded: every lit surface uses a toon ramp of three or four hard light bands rather than smooth shading.
+The cel-shading in the island scene keeps hue in the shadow bands, shifting shadows toward a cool blue-violet instead of darkening to grey, in the manner of The Legend of Zelda: The Wind Waker and Genshin Impact.
+The island scene draws ink outlines in a post-process pass using edges found in both depth and normals, and outlines get thinner and lighter with distance so far terrain does not turn to noise.
+The island scene adds a thin rim light on silhouettes facing away from the sun, coloured by the sky.
+The island scene uses one limited, hand-picked palette for terrain, foliage, water and sky, and every weather state changes that palette's tint instead of adding new colours.
+The sky in the island scene is a gradient dome driven by sun height, with banded stylised clouds, a sun disc, a moon, and stars that fade in at night.
+The ocean around the island is stylised water: summed Gerstner waves for its shape, depth-based colour from turquoise in the shallows to deep blue, a hard-edged foam line where the water meets the shore, and toon specular highlights in bands.
+Grass on the island is instanced blades that sway in the wind field, and trees on the island are low-poly clumps of foliage with toon shading and the same sway.
+The camera in the island scene orbits with the mouse, zooms with the scroll wheel within limits, and drifts slowly on its own when left alone for ten seconds.
+
+Goal: island.html opens and shows a cel-shaded island with outlines, stylised water, grass and trees, an orbiting camera, and a steady 60 fps at 1080p.
+
+## Terrain
+
+The island terrain is a heightfield of at least 256 by 256 cells, generated from fractal noise and shaped by a radial falloff, so it has one central peak tall enough to hold snow, ridges, valleys, a beach and a shallow reef.
+The island terrain stores per-cell layers for rock height, loose sediment, water depth, wetness, snow depth, temperature and vegetation density, and every system reads and writes these layers instead of keeping its own copy.
+The island terrain shader picks its material per cell from those layers: sand near the sea, grass and soil on gentle slopes, bare rock on steep slopes, darker colour where wet, and white where snow lies.
+The island terrain mesh updates its vertex heights from the heightfield whenever erosion changes them, without rebuilding the whole mesh each frame.
+
+## Atmosphere and the weather model
+
+The island weather is driven by a small atmosphere model with temperature, humidity, air pressure, wind speed and wind direction, all changing smoothly over time and never jumping.
+The island atmosphere cools with height at the standard lapse rate of 6.5 °C per kilometre, so the peak can be below freezing while the beach is warm, and the snow line follows from this.
+The island atmosphere computes the dew point from temperature and humidity, and clouds form only when air is lifted, by the mountain or by a passing front, to where it cools below its dew point.
+The island atmosphere makes orographic rain: moist wind rising over the peak rains on the windward slopes, and the leeward side stays drier, in a visible rain shadow.
+The island atmosphere runs a day and night cycle in which the sun heats the land in the day and the land cools at night, and this temperature change drives a sea breeze by day and a land breeze by night.
+The island atmosphere has seasons that shift the average temperature, the sun's path and how likely each kind of weather is.
+The island weather moves through fronts (clear, building cloud, rain, storm, clearing) with believable transitions lasting tens of seconds, never by switching between presets.
+
+## Wind
+
+The island wind is a 2D vector field over the terrain that speeds up over ridges, slows and swirls in the lee of the peak, and gusts in noise-driven bursts.
+The island wind bends grass and trees by an amount proportional to the local wind speed, with a gust visibly moving across the grass as a wave.
+The island wind pushes rain and snow at an angle, moves clouds and their shadows across the land, and raises whitecaps and taller waves on the sea as it strengthens.
+The island wind carries loose sand off the beach and dry soil off bare slopes as visible drifting particles when it is strong and the ground is dry.
+
+Goal: the island has a heightfield with material layers, an atmosphere with a lapse rate, dew point and rain shadow, a day/night cycle, and a wind field that visibly moves the grass, trees, clouds and waves.
+
+## Water on the land
+
+The island rain is drawn as streaks that are angled by the wind, lit by the sun or lightning, and splash where they hit the ground or the sea.
+Rain on the island raises each cell's water depth, and the water flows downhill using a pipe-model shallow-water simulation (outflow flux between neighbouring cells, as in Mei, Decaudin and Hu, 2007).
+Water on the island collects into puddles in hollows, streams in valleys, and a river that reaches the sea, and none of these channels is placed by hand.
+Water on the island soaks into the ground at a rate set by the material (fast in sand, slow in rock), and evaporates at a rate set by temperature, wind and sunlight.
+The island wetness layer darkens and adds gloss to every surface it covers, makes puddles reflect the sky with toon-banded highlights, and dries from the edges inward once the rain stops.
+
+## Erosion
+
+The island hydraulic erosion lets moving water pick up sediment up to a carrying capacity set by its speed and the slope, and drop sediment where it slows down.
+The island hydraulic erosion visibly cuts gullies into slopes, widens the river valley, and builds a delta and sand bars where the river meets the sea over minutes of heavy rain.
+The island thermal erosion moves material downhill wherever a slope is steeper than that material's angle of repose (about 34° for sand, steeper for soil, much steeper for rock), forming scree at the foot of cliffs.
+The island coastal erosion lets waves wear the shoreline back during storms and lets calm weather rebuild the beach with deposited sand.
+The island erosion runs on the GPU in fragment or compute passes, several steps per frame, with a speed control and a pause.
+
+Goal: rain on the island flows downhill into puddles, streams and a river; surfaces darken when wet and dry afterwards; and an hour of storm visibly carves gullies and builds a delta.
+
+## Snow, ice and cold
+
+Snow falls on the island whenever the air temperature at a cell is below about 1 °C, so it lands on the peak while rain falls on the beach, and the rain-snow boundary moves with the weather.
+The island snow layer settles more on surfaces facing upward and on the lee side of the wind, slides off slopes that are too steep, and is drawn as a soft, banded white that covers terrain, rocks and the upper sides of trees.
+The island snow layer is drifted by strong wind from exposed ridges into hollows.
+The island snow layer melts above freezing at a rate set by temperature and sunlight, and its meltwater feeds the shallow-water simulation, swelling the river after a thaw.
+Puddles on the island freeze into glossy ice below freezing, and frost appears on the grass on clear cold nights.
+Hail falls on the island in the strongest storms as small bouncing pellets that pile up briefly and melt.
+
+## Lightning and storms
+
+Lightning on the island only happens in storm clouds, and a strike grows as a branching stepped leader toward the ground, with the return stroke drawn as a bright core with a glow.
+Lightning on the island strikes tall and exposed points most often (the peak, ridges, tall trees, the sea surface), chosen with a weighting rather than at random.
+A lightning strike on the island lights the whole scene for a few frames, throwing hard cel-shaded shadows away from the strike point, and flickers two or three times.
+Thunder for each lightning strike on the island is synthesised with the Web Audio API and arrives after a delay of its distance divided by 343 metres per second, as a sharp crack when close and a low rumble when far.
+A lightning strike on an island tree can scorch it black, and a scorched tree can smoulder and smoke for a while if the ground is dry.
+Storms on the island bring darker cloud bases, heavier angled rain, strong gusts, big waves with spray, and a cold downdraught at their leading edge.
+
+Goal: rain turns to snow above the freezing line on the island, snow drifts and melts into the river, and storms bring branching lightning with correctly delayed thunder and a lit scene.
+
+## Atmospheric effects
+
+Fog forms on the island when the air near the ground cools to its dew point (in valleys at dawn and over cold sea in warm humid air), and burns off as the sun warms the land.
+A rainbow appears in the island scene only when the sun is low behind the camera and rain is falling in front of it, drawn as a stylised banded arc at 42° from the antisolar point.
+Clouds over the island cast moving shadows on the terrain and sea, and sunlight shows as stylised god rays through gaps in storm clouds.
+The sea around the island rises and falls with a slow tide, so the beach and reef are covered and uncovered over a cycle of a few minutes.
+Sea spray and mist blow off wave crests onto the island shore in strong wind, and the sea turns grey-green and choppy under storm cloud.
+Vegetation on the island responds to the weather over time: grass greens after rain, browns in long dry spells, and is sparser where erosion has stripped soil.
+
+## Sound
+
+The island scene has a generated soundscape using the Web Audio API: wind noise whose pitch and loudness follow wind speed, rain hiss that follows rain intensity, surf on the shore, and thunder.
+The island soundscape starts only after the first click, as browsers require, and has a mute button.
+
+## Controls
+
+The island scene has a small collapsible control panel with a time-of-day slider, a time-speed control, a season selector, and sliders for temperature, humidity and wind speed and direction.
+The island control panel offers weather buttons (clear, overcast, rain, storm, snow, fog) that move the atmosphere toward that state smoothly rather than snapping to it.
+The island control panel has a seed field with a new-island button, a reset-erosion button, and an erosion speed control.
+The island control panel has a debug overlay that colours the terrain by any single layer (water depth, sediment, wetness, snow, temperature) and shows frame time.
+The island control panel shows a readout of the current temperature at sea level and at the peak, humidity, dew point, wind, and the weather's name.
+
+## Quality
+
+The island scene adapts its quality to keep 60 fps by lowering the simulation grid steps per frame, particle counts and shadow resolution, in that order.
+The island scene must never show NaN holes, exploding heights or water appearing from nowhere, so the simulations clamp their values and conserve water and sediment except where rain, evaporation, infiltration and the sea add or remove them.
+The island.html code is organised into clearly named sections (config, random, terrain, atmosphere, water, erosion, snow, lightning, rendering, audio, UI) with a short comment at the top of each.
+
+Goal: island.html runs every weather state from the control panel at 60 fps on a mid-range laptop; the debug overlay shows the water, sediment, snow and temperature layers behaving as described; and the island looks like a hand-painted cel-shaded diorama in clear, storm, snow and fog.

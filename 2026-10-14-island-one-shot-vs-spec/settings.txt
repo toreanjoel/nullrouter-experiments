@@ -1,0 +1,33 @@
+SETTINGS USED
+
+Both builds: the prompt in prompt.txt (an "Island weather diorama" spec).
+The router build had one extra line appended telling it to write the file
+into a folder named for the tool. It produced router/index.html, not
+island.html as the prompt names the file.
+
+CLAUDE CODE (one shot)
+  model            claude-opus-5-5
+  effort           xhigh
+  mode             one shot: the prompt, no spec structure, no goals
+  reported         $19.07 total, 1 h 12 m 48 s API time, 1 h 47 m 37 s wall,
+                   2,520 lines added, 1 removed
+
+ROUTER (spec run)
+  how              the prompt as a spec with goals, checks and steps
+  models           claude-opus-5-5 on 31 of 33 turns, claude-sonnet-5-5 on 2
+  effort           suggested per message by a classifier, 0.8 to 3.6 on a
+                   0 to 4 scale, sent to Claude Code as one of
+                   low, low, medium, high, xhigh. A warm process keeps the
+                   effort it started with, so the effort that ran is not
+                   recorded.
+  cache            one warm process per model, briefs capped at 3,000 tokens,
+                   context capped at 128,000 tokens, cache lifetime 3,600 s
+  billing          Claude Code on a subscription: figures are what the same
+                   use would cost on metered API keys, not what was billed
+
+PRICING BASIS (both builds)
+  claude-opus-5-5   per million tokens: input $4, cache write $8 (1 h rate),
+                    cache read $0.20, output $20
+  claude-sonnet-5-5 input $2, cache write $4, cache read $0.10, output $10
+  Source: Anthropic pricing page, fetched 2026-10-14. Claude Code's reported
+  total reconciles with the 1-hour write rate.

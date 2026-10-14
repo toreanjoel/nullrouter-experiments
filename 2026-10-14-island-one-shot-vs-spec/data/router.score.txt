@@ -1,0 +1,35 @@
+score · island · build
+  spent            $56.80
+    input          $0.0046
+    cache write    $17.39
+    cache read     $21.67
+    output         $17.74
+  read per written 125:1
+  by cause         output $17.74 · cache reads $21.67 · new context $3.59 · model switches $0.04 · expired caches $2.07 · compactions $11.70
+  $ per M output   $64.01
+  tokens           1.2k input · 2.2M cache write · 108.4M cache read · 887.4k output
+  turns            33 (each may hold several API calls)
+  re-caches        compactions: 8, $11.70 · expired caches: 2, $2.07 · model switches: 1, $0.04
+  retries          2 requests sent more than once, 2 retries, $2.83
+
+  models
+    anthropic/claude-opus-5-5            31 turns        $56.72
+    anthropic/claude-sonnet-5-5           2 turns         $0.09
+
+  what each figure is
+    Spent                $56.80
+      What the session cost at list prices. On a subscription it is what metered keys would have charged, not what was billed. A + means some turns had no price and are not in it.
+    Read per written     125:1
+      Tokens read in for every token the model wrote. High means the same context was read again and again: long conversations, many turns.
+    $ per million output $64.01
+      Total cost divided by what was written, so it carries all the context overhead.
+    Re-caches            $13.80 (79% of cache writes)
+      Context written again after a model switch, a cache that expired, or a write over the threshold.
+    Retries              2 ($2.83)
+      The same request sent again; the cost is what the sends after the first came to.
+    Biggest cause        cache reads (38%)
+      Where most of the money went, by cause.
+
+  cache reads were 38% of $56.80; 125 tokens read per token written; 11 re-caches cost $13.80, 79% of all cache-write spend.
+  source: nullrouter records · 2026-10-14 → 2026-10-14
+  $ per million in/write/read/out: anthropic/claude-opus-5-5 4/8/0.2/20; anthropic/claude-sonnet-5-5 2/4/0.1/10

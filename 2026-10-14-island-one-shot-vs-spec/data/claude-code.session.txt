@@ -1,0 +1,18 @@
+Claude Code session summary, as reported
+
+Total cost:            $19.07
+Total duration (API):  1h 12m 48s
+Total duration (wall): 1h 47m 37s
+Total code changes:    2520 lines added, 1 line removed
+Usage by model:
+    claude-haiku-5-5:  5.3k input, 16 output, 0 cache read, 0 cache write ($0.0005)
+     claude-opus-5-5:  252 input, 440.0k output, 24.2m cache read, 678.1k cache write ($19.07)
+
+Reconstructed at Opus 5.5 prices (per million: $4 input, $8 write, $0.20 read, $20 output):
+    output        440.0k x $20   = $8.80
+    cache reads   24.2M  x $0.20 = $4.84
+    cache writes  678.1k x $8    = $5.42
+    input         252    x $4    = $0.00
+    total                         $19.06   (reported $19.07: the token counts are rounded)
+At the 5-minute write rate ($5) the total would be about $17.03, so the reported
+cost only adds up at the 1-hour write rate.
