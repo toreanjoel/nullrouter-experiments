@@ -13,6 +13,16 @@ the finished page, not a recording of the build.
 
 ![Claude Code build (left) and router build (right)](images/both-scenes.png)
 
+Both frames are at each page's default camera distance, with the control
+panels hidden, the same time of day and the same seed. More angles:
+[overhead](images/both-scenes-overhead.png) and
+[side-on](images/both-scenes-angle.png).
+
+The prompt asks for a cel-shaded look: "a toon ramp of three or four hard light
+bands", ink outlines drawn in a post-process pass, and "one limited,
+hand-picked palette", in the manner of The Wind Waker. Flat colour bands and
+outlines are what it asks for, not a rendering fault.
+
 ## Result
 
 | | Claude Code | Router (spec, goals, checks) | Ratio |
