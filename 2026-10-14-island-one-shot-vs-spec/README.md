@@ -11,6 +11,8 @@ router run cost about three times as much and I judged its output better.
 labels in the videos show each run's cost and time. Each is a short orbit of
 the finished page, not a recording of the build.
 
+![Claude Code build (left) and router build (right)](images/both-scenes.png)
+
 ## Result
 
 | | Claude Code | Router (spec, goals, checks) | Ratio |
