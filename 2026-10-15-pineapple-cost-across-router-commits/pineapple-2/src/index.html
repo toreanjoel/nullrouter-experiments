@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pineapple Jelly — Material Studies No. 012</title>
+<style>/*CSS*/</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="ring" viewBox="0 0 24 24">
+    <path fill-rule="evenodd" d="M12 1.6a10.4 10.4 0 1 1 0 20.8a10.4 10.4 0 1 1 0-20.8zM12 8.2a3.8 3.8 0 1 0 0 7.6a3.8 3.8 0 1 0 0-7.6z"/>
+    <path fill="none" stroke="rgba(255,255,255,.45)" stroke-width=".7" d="M12 5.4V3.2M16.7 7.3l1.5-1.5M18.6 12h2.2M16.7 16.7l1.5 1.5M12 18.6v2.2M7.3 16.7l-1.5 1.5M5.4 12H3.2M7.3 7.3L5.8 5.8"/>
+  </symbol>
+</svg>
+
+<main id="app">
+  <div class="stage">
+    <canvas id="view" aria-label="A soft gummy pineapple ring on a studio floor"></canvas>
+    <header class="mast">
+      <div class="eyebrow">Material Studies <span>/</span> No. 012</div>
+      <h1>Pineapple <span class="slash">/</span><br>Jelly.</h1>
+      <p class="hint" id="hint">Grab either edge. Pull. Let go.</p>
+    </header>
+  </div>
+
+  <aside class="panel" aria-label="The Specimen">
+    <h2>The Specimen</h2>
+
+    <section class="group">
+      <div class="label">Tint</div>
+      <div class="swatches" role="radiogroup" aria-label="Tint">
+        <button class="swatch" data-tint="0" role="radio" aria-checked="true" style="--c:#e9b83a"><svg><use href="#ring"/></svg><span>Golden</span></button>
+        <button class="swatch" data-tint="1" role="radio" aria-checked="false" style="--c:#d0781f"><svg><use href="#ring"/></svg><span>Amber</span></button>
+        <button class="swatch" data-tint="2" role="radio" aria-checked="false" style="--c:#e08a86"><svg><use href="#ring"/></svg><span>Rosé</span></button>
+      </div>
+    </section>
+
+    <section class="group">
+      <label class="slider"><span class="label">Firmness <output id="firmOut">55</output></span>
+        <input id="firm" type="range" min="0" max="100" value="55"></label>
+      <label class="slider"><span class="label">Internal damping <output id="dampOut">35</output></span>
+        <input id="damp" type="range" min="0" max="100" value="35"></label>
+    </section>
+
+    <section class="group actions">
+      <button id="nudge">Give it a nudge</button>
+      <button id="flip">Turn it over</button>
+      <button id="reset">Reset</button>
+      <button id="pause" aria-pressed="false">Pause</button>
+    </section>
+
+    <section class="group toggles">
+      <label><input type="checkbox" id="mesh"> Show mesh</label>
+      <label><input type="checkbox" id="slow"> ¼ speed</label>
+    </section>
+
+    <dl class="readouts">
+      <div><dt>Mass</dt><dd id="rMass">—</dd></div>
+      <div><dt>Volume</dt><dd id="rVol">—</dd></div>
+      <div><dt>Kinetic</dt><dd id="rKin">—</dd></div>
+    </dl>
+
+    <p class="keys"><kbd>Space</kbd> pause · <kbd>N</kbd> nudge · <kbd>T</kbd> turn over · <kbd>R</kbd> reset</p>
+  </aside>
+
+  <div id="fallback" hidden>
+    <div class="card">
+      <div class="eyebrow">Material Studies <span>/</span> No. 012</div>
+      <h1>Pineapple <span class="slash">/</span> Jelly.</h1>
+      <p>This study needs <strong>WebGPU</strong>, and this browser didn’t offer a GPU device.</p>
+      <p class="small">Try a current Chrome, Edge or Safari on a desktop or recent phone, with hardware acceleration on.</p>
+      <p class="small" id="fallbackWhy"></p>
+    </div>
+  </div>
+</main>
+
+<script>/*JS*/</script>
+</body>
+</html>

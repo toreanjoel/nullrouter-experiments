@@ -12,6 +12,7 @@ cost, and what came out, so the numbers can be checked and the runs compared.
 | Date | Question | What differed | Cost | Controlled? |
 |---|---|---|---|---|
 | 2026-10-14 | [One shot against a spec with goals and checks, same prompt](2026-10-14-island-one-shot-vs-spec) | Spec, goals and checks | $19.07 vs $56.80 | No |
+| 2026-10-15 | [Same spec, built at later nullrouter commits](2026-10-15-pineapple-cost-across-router-commits) | nullrouter commit | $4.92 avg vs $7.70 / $6.94 | No |
 
 ## How runs are measured
 

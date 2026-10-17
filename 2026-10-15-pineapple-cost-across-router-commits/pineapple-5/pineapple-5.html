@@ -1,0 +1,1568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pineapple Jelly — Material Studies No. 012</title>
+<style>:root {
+  --paper: #efe9df;
+  --ink: #26211b;
+  --muted: #7a7064;
+  --rule: #d6cdbf;
+  --accent: #b9802a;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --sans: ui-sans-serif, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink); font-family: var(--sans); overflow-x: hidden; }
+.page { display: grid; grid-template-columns: minmax(0, 1fr) 320px; height: 100vh; height: 100dvh; }
+
+.stage { position: relative; min-width: 0; overflow: hidden; background: #4a4641; }
+#gl { display: block; width: 100%; height: 100%; touch-action: none; cursor: default; }
+#gl.can-grab { cursor: grab; }
+#gl.grabbing { cursor: grabbing; }
+#gl.orbit { cursor: move; }
+
+.masthead { position: absolute; top: 28px; left: 32px; pointer-events: none; color: #f6f1e8; text-shadow: 0 1px 12px rgba(0,0,0,.18); }
+.kicker { margin: 0 0 10px; font: 600 11px/1 var(--sans); letter-spacing: .18em; text-transform: uppercase; opacity: .82; }
+.kicker span { opacity: .5; margin: 0 .3em; }
+h1 { margin: 0; font: italic 400 clamp(40px, 6vw, 76px)/.92 var(--serif); letter-spacing: -.01em; }
+h1 .slash { font-style: normal; opacity: .45; font-weight: 300; }
+.hint { margin: 16px 0 0; font: italic 400 17px/1.3 var(--serif); opacity: .9; }
+.status { margin: 6px 0 0; min-height: 1.2em; font: 12px/1.3 var(--sans); letter-spacing: .04em; opacity: .75; }
+
+.readouts { position: absolute; left: 32px; bottom: 24px; margin: 0; display: flex; gap: 28px; color: #f6f1e8; pointer-events: none; }
+.readouts div { min-width: 72px; }
+.readouts dt { font: 600 10px/1 var(--sans); letter-spacing: .16em; text-transform: uppercase; opacity: .7; }
+.readouts dd { margin: 6px 0 0; font: 400 20px/1 var(--serif); font-variant-numeric: tabular-nums; }
+
+.panel { border-left: 1px solid var(--rule); padding: 28px 26px; overflow-y: auto; background: var(--paper); }
+.panel h2 { margin: 0 0 22px; font: italic 400 28px/1 var(--serif); border-bottom: 1px solid var(--ink); padding-bottom: 12px; }
+.field { padding: 0 0 20px; margin: 0 0 20px; border-bottom: 1px solid var(--rule); }
+.field h3, .field label:not(.check) { display: flex; justify-content: space-between; margin: 0 0 10px; font: 600 10.5px/1 var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.field label output { font: 400 13px/1 var(--serif); letter-spacing: 0; text-transform: none; color: var(--ink); }
+input[type=range] { width: 100%; margin: 0 0 18px; accent-color: var(--ink); }
+input[type=range]:last-child { margin-bottom: 0; }
+
+.swatches { display: flex; gap: 10px; }
+.swatch { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px 8px; background: transparent; border: 1px solid var(--rule); border-radius: 2px; font: 400 13px/1 var(--serif); color: var(--ink); cursor: pointer; }
+.swatch svg { width: 30px; height: 30px; }
+.swatch[aria-checked="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+button { font: 400 14px/1 var(--serif); color: var(--ink); background: transparent; border: 1px solid var(--ink); border-radius: 2px; padding: 11px 8px; cursor: pointer; }
+button:hover { background: var(--ink); color: var(--paper); }
+button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.toggles { display: flex; gap: 22px; }
+.check { display: flex; align-items: center; gap: 8px; font: 400 14px/1 var(--serif); cursor: pointer; }
+.check input { accent-color: var(--ink); margin: 0; }
+.keys { font: 12px/1.9 var(--sans); color: var(--muted); margin: 0 0 14px; }
+kbd { font: 600 10px/1 var(--sans); border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 3px; padding: 2px 5px; color: var(--ink); background: #f7f3ec; }
+.colophon { font: italic 12px/1.5 var(--serif); color: var(--muted); margin: 0; }
+
+.fallback { position: fixed; inset: 0; display: grid; place-items: center; background: var(--paper); padding: 24px; z-index: 10; }
+.fallback[hidden] { display: none; }
+.fallback > div { max-width: 460px; }
+.fallback h1 { margin-bottom: 22px; }
+.fallback p { font: 17px/1.5 var(--serif); }
+.fallback .kicker { font: 600 11px/1 var(--sans); color: var(--muted); }
+.fallback .why { font: 12px/1.4 var(--sans); color: var(--muted); }
+
+@media (max-width: 820px) {
+  .page { display: block; height: auto; }
+  .stage { height: 64vh; height: 64svh; min-height: 360px; }
+  .masthead { top: 18px; left: 18px; right: 18px; }
+  h1 { font-size: 44px; }
+  .hint { font-size: 15px; margin-top: 10px; }
+  .readouts { left: 18px; right: 18px; bottom: 14px; gap: 18px; }
+  .readouts dd { font-size: 17px; }
+  .panel { border-left: 0; border-top: 1px solid var(--rule); padding: 22px 18px 32px; overflow: visible; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <main class="stage" id="stage">
+    <canvas id="gl" aria-label="A gummy pineapple ring you can grab, stretch and flip"></canvas>
+    <header class="masthead">
+      <p class="kicker">Material Studies <span>/</span> No. 012</p>
+      <h1>Pineapple <span class="slash">/</span><br>Jelly.</h1>
+      <p class="hint">Grab either edge. Pull. Let go.</p>
+      <p class="status" id="status" aria-live="polite"></p>
+    </header>
+    <dl class="readouts">
+      <div><dt>Mass</dt><dd id="ro-mass">—</dd></div>
+      <div><dt>Volume</dt><dd id="ro-vol">—</dd></div>
+      <div><dt>Kinetic</dt><dd id="ro-ke">—</dd></div>
+    </dl>
+  </main>
+
+  <aside class="panel">
+    <h2>The Specimen</h2>
+    <section class="field">
+      <h3>Tint</h3>
+      <div class="swatches" id="swatches" role="radiogroup" aria-label="Tint"></div>
+    </section>
+    <section class="field">
+      <label for="firm"><span>Firmness</span><output id="firm-out"></output></label>
+      <input type="range" id="firm" min="0" max="1" step="0.01" value="0.55">
+      <label for="damp"><span>Internal damping</span><output id="damp-out"></output></label>
+      <input type="range" id="damp" min="0" max="1" step="0.01" value="0.35">
+    </section>
+    <section class="field actions">
+      <button id="b-nudge">Give it a nudge</button>
+      <button id="b-turn">Turn it over</button>
+      <button id="b-reset">Reset</button>
+      <button id="b-pause" aria-pressed="false">Pause</button>
+    </section>
+    <section class="field toggles">
+      <label class="check"><input type="checkbox" id="t-mesh"> Show mesh</label>
+      <label class="check"><input type="checkbox" id="t-slow"> ¼ speed</label>
+    </section>
+    <p class="keys"><kbd>Space</kbd> pause · <kbd>N</kbd> nudge · <kbd>T</kbd> turn it over · <kbd>R</kbd> reset</p>
+    <p class="colophon">XPBD tetrahedral soft body · WebGPU · 1 unit ≈ 3 cm at 1.3 g/cm³</p>
+  </aside>
+</div>
+
+<div class="fallback" id="fallback" hidden>
+  <div>
+    <p class="kicker">Material Studies <span>/</span> No. 012</p>
+    <h1>Pineapple <span class="slash">/</span><br>Jelly.</h1>
+    <p>This study is rendered with <strong>WebGPU</strong>, which this browser doesn’t offer.</p>
+    <p class="why" id="fallback-why"></p>
+    <p>Try a current Chrome, Edge or Safari (17.4+ with WebGPU enabled), or Firefox Nightly.</p>
+  </div>
+</div>
+<script>(() => {
+"use strict";
+const WGSL = {
+  backface: "// Jelly back faces: distance from the camera to the nearest back face, for view-ray thickness.\nstruct VO { @builtin(position) pos: vec4f, @location(0) w: vec3f };\n\n@vertex fn vs(@location(0) p: vec4f) -> VO {\n  var o: VO;\n  o.pos = F.viewProj * vec4f(p.xyz, 1.0);\n  o.w = p.xyz;\n  return o;\n}\n\n@fragment fn fs(i: VO) -> @location(0) vec4f {\n  return vec4f(length(i.w - F.camPos.xyz), 0.0, 0.0, 1.0);\n}\n",
+  cells: "// Juice cells (pale elongated sacs) and air bubbles, instanced ellipsoids that ride with the flesh.\nstruct VO { @builtin(position) pos: vec4f, @location(0) w: vec3f, @location(1) n: vec3f, @location(2) kind: f32 };\n\n@vertex fn vs(@location(0) sp: vec3f, @location(1) ct: vec4f, @location(2) ar: vec4f) -> VO {\n  let L = max(length(ar.xyz), 1e-4);\n  let a = ar.xyz / L;\n  var helper = vec3f(0.0, 1.0, 0.0);\n  if (abs(a.y) > 0.9) { helper = vec3f(1.0, 0.0, 0.0); }\n  let u = normalize(cross(a, helper));\n  let v = cross(a, u);\n  let r = ar.w;\n  var o: VO;\n  o.w = ct.xyz + a * (sp.x * L) + u * (sp.y * r) + v * (sp.z * r);\n  o.n = a * (sp.x / L) + u * (sp.y / r) + v * (sp.z / r);\n  o.pos = F.viewProj * vec4f(o.w, 1.0);\n  o.kind = ct.w;\n  return o;\n}\n\n@fragment fn fs(i: VO) -> @location(0) vec4f {\n  let n = normalize(i.n);\n  let V = normalize(F.camPos.xyz - i.w);\n  let L = normalize(F.lightDir.xyz);\n  let nv = max(dot(n, V), 0.0);\n  let H = normalize(L + V);\n  let spec = pow(max(dot(n, H), 0.0), 120.0) * 2.5;\n  if (i.kind > 0.5) {\n    // Bubble: dark core, bright rim, sharp catch-light.\n    let rim = pow(1.0 - nv, 2.0);\n    return vec4f(vec3f(0.35, 0.33, 0.30) * (0.4 + nv * 0.3) + vec3f(1.6) * rim + spec * 2.0, 1.0);\n  }\n  let wrap = max(dot(n, L) * 0.5 + 0.5, 0.0);\n  let juice = mix(F.tint.rgb, vec3f(1.0, 0.97, 0.86), 0.65);\n  return vec4f(juice * (0.55 + 1.1 * wrap) + spec, 1.0);\n}\n",
+  common: "// Shared frame data, studio lighting and the pineapple flesh zones (prepended to the scene shaders).\nstruct Frame {\n  viewProj: mat4x4f,\n  lightVP: mat4x4f,\n  heightVP: mat4x4f,\n  camPos: vec4f,\n  lightDir: vec4f,   // unit, toward the key light\n  lightEye: vec4f,   // key-light camera position\n  absorb: vec4f,     // rgb absorption per unit, w = density scale\n  tint: vec4f,       // flesh / glow colour\n  misc: vec4f,       // time, exposure, width, height\n  misc2: vec4f,      // height-map eye y, map half extent, show mesh, 0\n};\n@group(0) @binding(0) var<uniform> F: Frame;\n@group(0) @binding(1) var shadowTex: texture_2d<f32>;\n@group(0) @binding(2) var heightTex: texture_2d<f32>;\n@group(0) @binding(3) var linSamp: sampler;\n\nconst PI = 3.14159265;\nconst KEY = vec3f(3.1, 2.95, 2.75);\n\nfn hash21(p: vec2f) -> f32 {\n  let q = fract(p * vec2f(123.34, 456.21));\n  let r = q + dot(q, q + 45.32);\n  return fract(r.x * r.y);\n}\nfn noise2(p: vec2f) -> f32 {\n  let i = floor(p); let f = fract(p);\n  let u = f * f * (3.0 - 2.0 * f);\n  return mix(mix(hash21(i), hash21(i + vec2f(1, 0)), u.x), mix(hash21(i + vec2f(0, 1)), hash21(i + vec2f(1, 1)), u.x), u.y);\n}\n\n// Soft rectangular softbox seen in direction d.\nfn softbox(d: vec3f, n: vec3f, right: vec3f, hw: f32, hh: f32, power: f32) -> f32 {\n  let t = dot(d, n);\n  if (t <= 0.0) { return 0.0; }\n  let p = d / t - n;\n  let up = cross(n, right);\n  let x = abs(dot(p, right)) / hw;\n  let y = abs(dot(p, up)) / hh;\n  let m = (1.0 - smoothstep(0.75, 1.0, x)) * (1.0 - smoothstep(0.75, 1.0, y));\n  return m * power;\n}\n\n// Photo-studio environment: warm-grey cyclorama with three softboxes.\nfn env(d: vec3f) -> vec3f {\n  let h = d.y;\n  var c = mix(vec3f(0.42, 0.40, 0.38), vec3f(0.62, 0.60, 0.57), smoothstep(-0.2, 0.6, h));\n  c = mix(vec3f(0.30, 0.28, 0.26), c, smoothstep(-0.25, 0.02, h));\n  let kn = normalize(F.lightDir.xyz);\n  c += vec3f(1.0, 0.97, 0.92) * softbox(d, kn, normalize(cross(vec3f(0, 1, 0), kn)), 0.42, 0.3, 9.0);\n  let sn = normalize(vec3f(0.95, 0.35, -0.15));\n  c += vec3f(0.92, 0.95, 1.0) * softbox(d, sn, normalize(cross(vec3f(0, 1, 0), sn)), 0.12, 0.55, 5.0);\n  let bn = normalize(vec3f(-0.2, 0.55, -1.0));\n  c += vec3f(1.0, 0.95, 0.88) * softbox(d, bn, normalize(cross(vec3f(0, 1, 0), bn)), 0.6, 0.18, 3.5);\n  return c;\n}\n\nfn outerR(th: f32) -> f32 {\n  let c = cos(7.0 * th);\n  let e = 0.02;\n  let b = (sqrt(c * c + e) - sqrt(e)) / (sqrt(1.0 + e) - sqrt(e));\n  return 1.36 - 0.05 * (1.0 - b);\n}\n\n// Thin streak pattern across x with per-streak random strength.\nfn streaks(x: f32, w: f32) -> f32 {\n  let id = floor(x);\n  let s = hash21(vec2f(id, 7.1));\n  let off = abs(fract(x) - 0.5 - (s - 0.5) * 0.5);\n  return (1.0 - smoothstep(0.0, w, off)) * step(0.35, s) * (0.4 + 0.6 * s);\n}\n\n// Flesh zones from rest-space position: x = density, y = milkiness, z = core weight.\nfn zones(P: vec3f) -> vec3f {\n  let r = length(P.xz);\n  let th = atan2(P.z, P.x);\n  let R = outerR(th);\n  let u = clamp((r - 0.5) / (R - 0.5), 0.0, 1.0);\n  let core = 1.0 - smoothstep(0.1, 0.28, u);\n  let rim = smoothstep(0.88, 0.99, u);\n  let eyesBand = smoothstep(0.6, 0.7, u) * (1.0 - smoothstep(0.86, 0.94, u));\n  let a = th / (2.0 * PI);\n  let wob = noise2(vec2f(a * 40.0, u * 3.0)) - 0.5;\n  let fib = streaks(a * 120.0 + wob * 0.8, 0.13) * (0.45 + 0.55 * noise2(vec2f(a * 120.0, u * 2.5 + 3.0)))\n            * smoothstep(0.03, 0.18, u) * (1.0 - smoothstep(0.92, 1.0, u));\n  let thread = streaks(a * 330.0 + wob * 1.6, 0.18) * noise2(vec2f(a * 330.0, u * 6.0)) * (1.0 - core);\n  let eyes = eyesBand * smoothstep(0.35, 0.75, noise2(vec2f(a * 70.0, u * 14.0 + P.y * 6.0)) * 0.6 + noise2(vec2f(a * 190.0, u * 30.0)) * 0.5);\n  let density = 1.0 + core * 1.5 + rim * 0.8 + fib * 1.0 + thread * 0.45 + eyes * 1.4;\n  let milk = 0.12 + core * 1.5 + fib * 0.9 + thread * 0.35 + eyes * 0.9;\n  return vec3f(density, milk, core);\n}\n\nfn quatRotate(q: vec4f, v: vec3f) -> vec3f {\n  let t = 2.0 * cross(q.xyz, v);\n  return v + q.w * t + cross(q.xyz, t);\n}\n\n// Soft PCSS key shadow tinted by the light that passes through the jelly.\nfn keyShadow(p: vec3f) -> vec3f {\n  let lc = F.lightVP * vec4f(p, 1.0);\n  let uv = vec2f(lc.x * 0.5 + 0.5, 0.5 - lc.y * 0.5);\n  if (any(uv < vec2f(0.0)) || any(uv > vec2f(1.0))) { return vec3f(1.0); }\n  let dims = vec2f(textureDimensions(shadowTex));\n  let dR = dot(p - F.lightEye.xyz, -F.lightDir.xyz);\n  let rot = hash21(p.xz * 91.0) * 6.2831;\n  let cr = cos(rot); let sr = sin(rot);\n  var sum = 0.0; var cnt = 0.0;\n  for (var i = 0; i < 12; i++) {\n    let fi = f32(i);\n    let a = fi * 2.39996; let rr = sqrt((fi + 0.5) / 12.0) * 0.03;\n    let o = vec2f(cos(a), sin(a)) * rr;\n    let s = textureLoad(shadowTex, vec2i(clamp(uv + vec2f(o.x * cr - o.y * sr, o.x * sr + o.y * cr), vec2f(0.0), vec2f(0.999)) * dims), 0);\n    if (s.r < dR - 0.03) { sum += s.r; cnt += 1.0; }\n  }\n  if (cnt < 0.5) { return vec3f(1.0); }\n  let dB = sum / cnt;\n  let w = clamp((dR - dB) * 0.012, 0.0015, 0.04);\n  var lit = vec3f(0.0);\n  for (var i = 0; i < 20; i++) {\n    let fi = f32(i);\n    let a = fi * 2.39996; let rr = sqrt((fi + 0.5) / 20.0) * w;\n    let o = vec2f(cos(a), sin(a)) * rr;\n    let s = textureLoad(shadowTex, vec2i(clamp(uv + vec2f(o.x * cr - o.y * sr, o.x * sr + o.y * cr), vec2f(0.0), vec2f(0.999)) * dims), 0);\n    if (s.r < dR - 0.03) {\n      let thick = max(s.a - s.r, 0.0);\n      lit += exp(-F.absorb.rgb * F.absorb.w * thick * 1.6) * 0.55 * F.tint.rgb;\n    } else { lit += vec3f(1.0); }\n  }\n  return lit / 20.0;\n}\n\n// Contact AO on the floor from the top-down bottom-height map.\nfn contactAO(p: vec3f) -> f32 {\n  let ext = F.misc2.y;\n  let dims = vec2f(textureDimensions(heightTex));\n  var occ = 0.0;\n  for (var i = 0; i < 14; i++) {\n    let fi = f32(i);\n    let a = fi * 2.39996; let rr = sqrt((fi + 0.5) / 14.0) * 0.55;\n    let q = p.xz + vec2f(cos(a), sin(a)) * rr;\n    let hc = F.heightVP * vec4f(q.x, 0.0, q.y, 1.0);\n    let uv = vec2f(hc.x * 0.5 + 0.5, 0.5 - hc.y * 0.5);\n    if (any(uv < vec2f(0.0)) || any(uv > vec2f(1.0))) { continue; }\n    let s = textureLoad(heightTex, vec2i(uv * dims), 0);\n    let hb = F.misc2.x - s.a;\n    let gap = max(hb - p.y, 0.0);\n    occ += (1.0 - smoothstep(0.0, 0.7, gap)) * (1.0 - rr / 0.7);\n  }\n  return 1.0 - clamp(occ / 14.0 * 1.25, 0.0, 0.8);\n}\n",
+  cyc: "// Studio cyclorama: floor, cove and wall, lit by the key (PCSS, jelly-tinted) and the softboxes, with contact AO.\nstruct VO { @builtin(position) pos: vec4f, @location(0) w: vec3f, @location(1) n: vec3f };\n\n@vertex fn vs(@location(0) p: vec3f, @location(1) n: vec3f) -> VO {\n  var o: VO;\n  o.pos = F.viewProj * vec4f(p, 1.0);\n  o.w = p; o.n = n;\n  return o;\n}\n\n@fragment fn fs(i: VO) -> @location(0) vec4f {\n  let n = normalize(i.n);\n  let L = normalize(F.lightDir.xyz);\n  let albedo = vec3f(0.80, 0.77, 0.73);\n  // Pool of light from the overhead softbox, falling off toward the edges and up the wall.\n  let pool = exp(-dot(i.w.xz, i.w.xz) / 40.0) * 0.8 + 0.25;\n  let sky = mix(vec3f(0.30, 0.29, 0.28), vec3f(0.55, 0.54, 0.52), n.y * 0.5 + 0.5) * pool;\n  var direct = vec3f(0.0);\n  let ndl = max(dot(n, L), 0.0);\n  if (ndl > 0.0) { direct = KEY * 0.32 * ndl * keyShadow(i.w + n * 0.004); }\n  var ao = 1.0;\n  if (n.y > 0.8) { ao = contactAO(i.w); }\n  let side = env(normalize(vec3f(1.0, 0.25, 0.0))) * 0.04 * max(n.x, 0.0);\n  let col = albedo * (sky * ao + direct * mix(1.0, ao, 0.4) + side);\n  return vec4f(col, 1.0);\n}\n",
+  depthmap: "// Key-light shadow map and top-down height map: blended min (RGB) / max (A) distance along the pass direction.\n// R = nearest jelly surface, A = farthest, so A - R is the jelly thickness along the ray.\nstruct Pass { vp: mat4x4f, eye: vec4f, dir: vec4f };\n@group(0) @binding(0) var<uniform> P: Pass;\n\nstruct VO { @builtin(position) pos: vec4f, @location(0) d: f32 };\n\n@vertex fn vs(@location(0) p: vec4f) -> VO {\n  var o: VO;\n  o.pos = P.vp * vec4f(p.xyz, 1.0);\n  o.d = dot(p.xyz - P.eye.xyz, P.dir.xyz);\n  return o;\n}\n\n@fragment fn fs(i: VO) -> @location(0) vec4f {\n  return vec4f(i.d);\n}\n",
+  jelly: "// The jelly: refraction by view-ray thickness, per-tap Beer–Lambert absorption through the rest-space flesh zones,\n// milky in-scatter, back-lit glow at thin edges, Fresnel studio reflections and GGX highlights.\n@group(1) @binding(0) var sceneTex: texture_2d<f32>;\n@group(1) @binding(1) var backTex: texture_2d<f32>;\n\nstruct VO {\n  @builtin(position) pos: vec4f,\n  @location(0) w: vec3f,\n  @location(1) n: vec3f,\n  @location(2) q: vec4f,\n  @location(3) rest: vec3f,\n};\n\n@vertex fn vs(@location(0) p: vec4f, @location(1) n: vec4f, @location(2) q: vec4f, @location(3) rest: vec4f) -> VO {\n  var o: VO;\n  o.pos = F.viewProj * vec4f(p.xyz, 1.0);\n  o.w = p.xyz; o.n = n.xyz; o.q = q; o.rest = rest.xyz;\n  return o;\n}\n\nfn ggx(n: vec3f, v: vec3f, l: vec3f, a: f32) -> f32 {\n  let h = normalize(v + l);\n  let nh = max(dot(n, h), 0.0); let nl = max(dot(n, l), 0.0); let nv = max(dot(n, v), 1e-3);\n  let a2 = a * a;\n  let d = a2 / (PI * pow(nh * nh * (a2 - 1.0) + 1.0, 2.0));\n  let k = a * 0.5;\n  let g = (nv / (nv * (1.0 - k) + k)) * (nl / (nl * (1.0 - k) + k));\n  return d * g / (4.0 * nv) ;\n}\n\n@fragment fn fs(i: VO) -> @location(0) vec4f {\n  let N = normalize(i.n);\n  let V = normalize(F.camPos.xyz - i.w);\n  let L = normalize(F.lightDir.xyz);\n  let nv = clamp(dot(N, V), 0.0, 1.0);\n\n  // View-ray thickness from the back-face pass.\n  let front = length(F.camPos.xyz - i.w);\n  let back = textureLoad(backTex, vec2i(i.pos.xy), 0).r;\n  var thick = back - front;\n  if (back <= 0.0 || thick <= 0.0) { thick = 0.12; }\n  thick = clamp(thick, 0.02, 2.5);\n\n  // Refracted ray, carried into rest space with the local tet rotation.\n  let rd = refract(-V, N, 1.0 / 1.45);\n  let q = normalize(i.q);\n  let qi = vec4f(-q.xyz, q.w);\n  let rdRest = quatRotate(qi, rd);\n\n  // Light reaching the inside (wrapped, so the flesh glows on its shadow side too).\n  let wrap = clamp(dot(N, L) * 0.5 + 0.5, 0.0, 1.0);\n  let inLight = KEY * (0.18 + 0.32 * wrap) + vec3f(0.35, 0.34, 0.33);\n\n  var T = vec3f(1.0);\n  var scat = vec3f(0.0);\n  let steps = 10;\n  let ds = thick / f32(steps);\n  let sigmaBase = F.absorb.rgb * F.absorb.w;\n  for (var k = 0; k < steps; k++) {\n    let s = (f32(k) + 0.5) * ds;\n    let z = zones(i.rest + rdRest * s);\n    let att = exp(-sigmaBase * z.x * ds);\n    let milkCol = mix(F.tint.rgb, vec3f(1.0, 0.97, 0.9), 0.35 + 0.45 * z.z);\n    scat += T * (1.0 - att) / max(sigmaBase * z.x, vec3f(1e-3)) * z.y * 0.55 * milkCol * inLight;\n    T *= att;\n  }\n\n  // Refract the scene: project the exit point back to the screen.\n  let exitW = i.w + rd * thick;\n  let clip = F.viewProj * vec4f(exitW, 1.0);\n  var uv = vec2f(clip.x / clip.w * 0.5 + 0.5, 0.5 - clip.y / clip.w * 0.5);\n  uv = clamp(uv, vec2f(0.001), vec2f(0.999));\n  let behind = textureSampleLevel(sceneTex, linSamp, uv, 0.0).rgb;\n\n  // Back-lit glow where the jelly is thin, strongest looking toward the light.\n  let thin = exp(-thick * 4.0);\n  let toward = pow(clamp(dot(-V, L), 0.0, 1.0), 4.0);\n  let glow = F.tint.rgb * KEY * thin * (0.12 + 1.2 * toward) * (0.4 + 0.6 * pow(1.0 - nv, 1.5));\n\n  // Studio reflections and highlights.\n  let F0 = 0.034;\n  let fres = F0 + (1.0 - F0) * pow(1.0 - nv, 5.0);\n  let refl = env(reflect(-V, N)) * fres;\n  let spec = KEY * ggx(N, V, L, 0.06) * max(dot(N, L), 0.0) * fres / F0 * 0.04;\n\n  let col = (behind * T + scat + glow) * (1.0 - fres) + refl + spec;\n  return vec4f(col, 1.0);\n}\n",
+  lines: "// Optional tet-mesh overlay: physics edges drawn over the jelly.\n@vertex fn vs(@location(0) p: vec4f) -> @builtin(position) vec4f {\n  return F.viewProj * vec4f(p.xyz, 1.0);\n}\n\n@fragment fn fs() -> @location(0) vec4f {\n  return vec4f(0.16, 0.10, 0.04, 0.35);\n}\n",
+  tonemap: "// Post: exposure, Khronos PBR Neutral tone mapping, sRGB encode, dither.\nstruct Post { exposure: f32, time: f32, pad0: f32, pad1: f32 };\n@group(0) @binding(0) var<uniform> U: Post;\n@group(0) @binding(1) var hdrTex: texture_2d<f32>;\n\n@vertex fn vs(@builtin(vertex_index) vi: u32) -> @builtin(position) vec4f {\n  let p = vec2f(f32((vi << 1u) & 2u), f32(vi & 2u));\n  return vec4f(p * 2.0 - 1.0, 0.0, 1.0);\n}\n\nfn pbrNeutral(c0: vec3f) -> vec3f {\n  let start = 0.8 - 0.04;\n  let desat = 0.15;\n  let x = min(c0.r, min(c0.g, c0.b));\n  var offset = 0.04;\n  if (x < 0.08) { offset = x - 6.25 * x * x; }\n  var c = c0 - offset;\n  let peak = max(c.r, max(c.g, c.b));\n  if (peak < start) { return c; }\n  let d = 1.0 - start;\n  let newPeak = 1.0 - d * d / (peak + d - start);\n  c *= newPeak / peak;\n  let g = 1.0 - 1.0 / (desat * (peak - newPeak) + 1.0);\n  return mix(c, vec3f(newPeak), g);\n}\n\nfn toSrgb(c: vec3f) -> vec3f {\n  let lo = c * 12.92;\n  let hi = 1.055 * pow(c, vec3f(1.0 / 2.4)) - 0.055;\n  return select(hi, lo, c <= vec3f(0.0031308));\n}\n\n@fragment fn fs(@builtin(position) fc: vec4f) -> @location(0) vec4f {\n  let hdr = textureLoad(hdrTex, vec2i(fc.xy), 0).rgb * U.exposure;\n  let mapped = clamp(pbrNeutral(max(hdr, vec3f(0.0))), vec3f(0.0), vec3f(1.0));\n  var s = toSrgb(mapped);\n  let n = fract(sin(dot(fc.xy + U.time, vec2f(12.9898, 78.233))) * 43758.5453);\n  s += (n - 0.5) / 255.0;\n  return vec4f(s, 1.0);\n}\n",
+};
+// ---- 00-math.js
+// Small column-major mat4 helpers (WebGPU clip space, z in [0,1]).
+const M4 = {
+  create: () => new Float32Array(16),
+  mul(out, a, b) {
+    for (let c = 0; c < 4; c++) {
+      const b0 = b[c * 4], b1 = b[c * 4 + 1], b2 = b[c * 4 + 2], b3 = b[c * 4 + 3];
+      for (let r = 0; r < 4; r++) {
+        out[c * 4 + r] = a[r] * b0 + a[4 + r] * b1 + a[8 + r] * b2 + a[12 + r] * b3;
+      }
+    }
+    return out;
+  },
+  perspective(out, fovy, aspect, near, far) {
+    const f = 1 / Math.tan(fovy / 2);
+    out.fill(0);
+    out[0] = f / aspect; out[5] = f;
+    out[10] = far / (near - far); out[11] = -1;
+    out[14] = (far * near) / (near - far);
+    return out;
+  },
+  ortho(out, l, r, b, t, n, f) {
+    out.fill(0);
+    out[0] = 2 / (r - l); out[5] = 2 / (t - b); out[10] = 1 / (n - f);
+    out[12] = -(r + l) / (r - l); out[13] = -(t + b) / (t - b); out[14] = n / (n - f); out[15] = 1;
+    return out;
+  },
+  lookAt(out, eye, at, up) {
+    let zx = eye[0] - at[0], zy = eye[1] - at[1], zz = eye[2] - at[2];
+    let l = Math.hypot(zx, zy, zz); zx /= l; zy /= l; zz /= l;
+    let xx = up[1] * zz - up[2] * zy, xy = up[2] * zx - up[0] * zz, xz = up[0] * zy - up[1] * zx;
+    l = Math.hypot(xx, xy, xz); xx /= l; xy /= l; xz /= l;
+    const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+    out[0] = xx; out[1] = yx; out[2] = zx; out[3] = 0;
+    out[4] = xy; out[5] = yy; out[6] = zy; out[7] = 0;
+    out[8] = xz; out[9] = yz; out[10] = zz; out[11] = 0;
+    out[12] = -(xx * eye[0] + xy * eye[1] + xz * eye[2]);
+    out[13] = -(yx * eye[0] + yy * eye[1] + yz * eye[2]);
+    out[14] = -(zx * eye[0] + zy * eye[1] + zz * eye[2]);
+    out[15] = 1;
+    return out;
+  },
+  invert(out, m) {
+    const a00 = m[0], a01 = m[1], a02 = m[2], a03 = m[3], a10 = m[4], a11 = m[5], a12 = m[6], a13 = m[7];
+    const a20 = m[8], a21 = m[9], a22 = m[10], a23 = m[11], a30 = m[12], a31 = m[13], a32 = m[14], a33 = m[15];
+    const b00 = a00 * a11 - a01 * a10, b01 = a00 * a12 - a02 * a10, b02 = a00 * a13 - a03 * a10;
+    const b03 = a01 * a12 - a02 * a11, b04 = a01 * a13 - a03 * a11, b05 = a02 * a13 - a03 * a12;
+    const b06 = a20 * a31 - a21 * a30, b07 = a20 * a32 - a22 * a30, b08 = a20 * a33 - a23 * a30;
+    const b09 = a21 * a32 - a22 * a31, b10 = a21 * a33 - a23 * a31, b11 = a22 * a33 - a23 * a32;
+    const det = 1 / (b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06);
+    out[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
+    out[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
+    out[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
+    out[3] = (a22 * b04 - a21 * b05 - a23 * b03) * det;
+    out[4] = (a12 * b08 - a10 * b11 - a13 * b07) * det;
+    out[5] = (a00 * b11 - a02 * b08 + a03 * b07) * det;
+    out[6] = (a32 * b02 - a30 * b05 - a33 * b01) * det;
+    out[7] = (a20 * b05 - a22 * b02 + a23 * b01) * det;
+    out[8] = (a10 * b10 - a11 * b08 + a13 * b06) * det;
+    out[9] = (a01 * b08 - a00 * b10 - a03 * b06) * det;
+    out[10] = (a30 * b04 - a31 * b02 + a33 * b00) * det;
+    out[11] = (a21 * b02 - a20 * b04 - a23 * b00) * det;
+    out[12] = (a11 * b07 - a10 * b09 - a12 * b06) * det;
+    out[13] = (a00 * b09 - a01 * b07 + a02 * b06) * det;
+    out[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det;
+    out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
+    return out;
+  },
+};
+
+// Seeded PRNG so the specimen is the same every load.
+function mulberry32(seed) {
+  return () => {
+    seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// ---- 01-shape.js
+// The specimen's rest shape: a scalloped annulus, extruded and bevelled. y is the thickness axis.
+const SHAPE = {
+  outer: 1.36,
+  hole: 0.5,
+  thick: 0.5,
+  bevel: 0.12,
+  scallops: 14,
+  scallopDepth: 0.05,
+};
+
+// Outer radius at angle th: 14 rounded lobes reaching SHAPE.outer, softened notches between them.
+function outerRadius(th) {
+  const c = Math.cos(SHAPE.scallops * 0.5 * th);
+  const e = 0.02;
+  const b = (Math.sqrt(c * c + e) - Math.sqrt(e)) / (Math.sqrt(1 + e) - Math.sqrt(e));
+  return SHAPE.outer - SHAPE.scallopDepth * (1 - b);
+}
+
+// Rest height of the body's centre above the floor at reset.
+const DROP_HEIGHT = SHAPE.thick * 0.5 + 0.35;
+
+// ---- 02-delaunay.js
+// Bowyer–Watson 2D Delaunay triangulation. pts: [x0,y0,x1,y1,...]. Returns flat CCW triangle indices.
+function delaunay2D(pts) {
+  const n = pts.length / 2;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (let i = 0; i < n; i++) {
+    minX = Math.min(minX, pts[2 * i]); maxX = Math.max(maxX, pts[2 * i]);
+    minY = Math.min(minY, pts[2 * i + 1]); maxY = Math.max(maxY, pts[2 * i + 1]);
+  }
+  const d = Math.max(maxX - minX, maxY - minY) * 20, cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+  const P = pts.slice();
+  P.push(cx - d, cy - d, cx + d, cy - d, cx, cy + d);
+
+  // Triangle: [a, b, c, circumX, circumY, r2]
+  const make = (a, b, c) => {
+    const ax = P[2 * a], ay = P[2 * a + 1], bx = P[2 * b], by = P[2 * b + 1], qx = P[2 * c], qy = P[2 * c + 1];
+    const D = 2 * (ax * (by - qy) + bx * (qy - ay) + qx * (ay - by));
+    const a2 = ax * ax + ay * ay, b2 = bx * bx + by * by, c2 = qx * qx + qy * qy;
+    const ux = (a2 * (by - qy) + b2 * (qy - ay) + c2 * (ay - by)) / D;
+    const uy = (a2 * (qx - bx) + b2 * (ax - qx) + c2 * (bx - ax)) / D;
+    return [a, b, c, ux, uy, (ax - ux) ** 2 + (ay - uy) ** 2];
+  };
+
+  let tris = [make(n, n + 1, n + 2)];
+  for (let i = 0; i < n; i++) {
+    const px = P[2 * i], py = P[2 * i + 1];
+    const keep = [], edges = new Map();
+    for (const t of tris) {
+      if ((px - t[3]) ** 2 + (py - t[4]) ** 2 < t[5] * (1 - 1e-12)) {
+        for (const [u, v] of [[t[0], t[1]], [t[1], t[2]], [t[2], t[0]]]) {
+          const k = u < v ? u * 100000 + v : v * 100000 + u;
+          edges.set(k, edges.has(k) ? null : [u, v]);
+        }
+      } else keep.push(t);
+    }
+    for (const e of edges.values()) if (e) keep.push(make(e[0], e[1], i));
+    tris = keep;
+  }
+
+  const out = [];
+  for (const t of tris) {
+    if (t[0] >= n || t[1] >= n || t[2] >= n) continue;
+    let [a, b, c] = t;
+    const cross = (P[2 * b] - P[2 * a]) * (P[2 * c + 1] - P[2 * a + 1]) - (P[2 * b + 1] - P[2 * a + 1]) * (P[2 * c] - P[2 * a]);
+    if (cross < 0) [b, c] = [c, b];
+    out.push(a, b, c);
+  }
+  return out;
+}
+
+// ---- 03-mesh.js
+// Tetrahedral mesh: Delaunay of the scalloped annulus (outline + hex lattice), extruded into prisms → 3 tets each.
+function buildTetMesh() {
+  const h = 0.17;            // lattice spacing
+  const nOut = 84, nIn = 26; // outline samples
+  const layers = 2;          // prism layers through the thickness
+  const pts = [];
+  for (let i = 0; i < nOut; i++) {
+    const th = (i / nOut) * Math.PI * 2, r = outerRadius(th);
+    pts.push(r * Math.cos(th), r * Math.sin(th));
+  }
+  for (let i = 0; i < nIn; i++) {
+    const th = ((i + 0.5) / nIn) * Math.PI * 2;
+    pts.push(SHAPE.hole * Math.cos(th), SHAPE.hole * Math.sin(th));
+  }
+  const rowH = h * Math.sqrt(3) / 2;
+  for (let row = -12; row <= 12; row++) {
+    for (let col = -12; col <= 12; col++) {
+      const x = col * h + (row & 1 ? h / 2 : 0), z = row * rowH;
+      const r = Math.hypot(x, z), th = Math.atan2(z, x);
+      if (r > SHAPE.hole + 0.6 * h && r < outerRadius(th) - 0.6 * h) pts.push(x, z);
+    }
+  }
+  const n2 = pts.length / 2;
+
+  // Keep triangles whose centroid lies in the flesh: holes skipped.
+  const all = delaunay2D(pts), tris = [];
+  for (let t = 0; t < all.length; t += 3) {
+    const a = all[t], b = all[t + 1], c = all[t + 2];
+    const x = (pts[2 * a] + pts[2 * b] + pts[2 * c]) / 3, z = (pts[2 * a + 1] + pts[2 * b + 1] + pts[2 * c + 1]) / 3;
+    const r = Math.hypot(x, z);
+    if (r > SHAPE.hole && r < outerRadius(Math.atan2(z, x))) tris.push(a, b, c);
+  }
+
+  const nv = n2 * (layers + 1);
+  const rest = new Float64Array(nv * 3);
+  for (let l = 0; l <= layers; l++) {
+    const y = -SHAPE.thick / 2 + (l / layers) * SHAPE.thick;
+    for (let i = 0; i < n2; i++) {
+      const v = l * n2 + i;
+      rest[3 * v] = pts[2 * i]; rest[3 * v + 1] = y; rest[3 * v + 2] = pts[2 * i + 1];
+    }
+  }
+
+  // Sorting each triangle by index gives every shared quad face the same diagonal.
+  const tets = [];
+  const nTri = tris.length / 3;
+  for (let l = 0; l < layers; l++) {
+    for (let t = 0; t < nTri; t++) {
+      const s = [tris[3 * t], tris[3 * t + 1], tris[3 * t + 2]].sort((p, q) => p - q);
+      const a = l * n2 + s[0], b = l * n2 + s[1], c = l * n2 + s[2];
+      const A = a + n2, B = b + n2, C = c + n2;
+      tets.push(a, b, c, C, a, b, B, C, a, A, B, C);
+    }
+  }
+  const nt = tets.length / 4;
+  const T = new Uint32Array(tets);
+  for (let t = 0; t < nt; t++) {
+    if (tetVolume(rest, T[4 * t], T[4 * t + 1], T[4 * t + 2], T[4 * t + 3]) < 0) {
+      const k = T[4 * t + 2]; T[4 * t + 2] = T[4 * t + 3]; T[4 * t + 3] = k;
+    }
+  }
+
+  const edgeSet = new Set(), edges = [];
+  const pairs = [[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]];
+  for (let t = 0; t < nt; t++) {
+    for (const [p, q] of pairs) {
+      let u = T[4 * t + p], v = T[4 * t + q];
+      if (u > v) [u, v] = [v, u];
+      const k = u * nv + v;
+      if (!edgeSet.has(k)) { edgeSet.add(k); edges.push(u, v); }
+    }
+  }
+
+  return { rest, tets: T, edges: new Uint32Array(edges), nv, nt, n2, layers, pts2: pts, tris2: new Uint32Array(tris), nTri };
+}
+
+function tetVolume(x, a, b, c, d) {
+  const ax = x[3 * b] - x[3 * a], ay = x[3 * b + 1] - x[3 * a + 1], az = x[3 * b + 2] - x[3 * a + 2];
+  const bx = x[3 * c] - x[3 * a], by = x[3 * c + 1] - x[3 * a + 1], bz = x[3 * c + 2] - x[3 * a + 2];
+  const cx = x[3 * d] - x[3 * a], cy = x[3 * d + 1] - x[3 * a + 1], cz = x[3 * d + 2] - x[3 * a + 2];
+  return (ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx)) / 6;
+}
+
+// Locate rest point (x,y,z) in the tet mesh: returns [tet, b0, b1, b2, b3] (bary may be slightly outside for hull points).
+function makeTetLocator(mesh) {
+  const { pts2, tris2, nTri, n2, layers, rest, tets } = mesh;
+  const cell = 0.12, span = 1.6, gn = Math.ceil((2 * span) / cell);
+  const grid = Array.from({ length: gn * gn }, () => []);
+  const gi = (v) => Math.max(0, Math.min(gn - 1, Math.floor((v + span) / cell)));
+  for (let t = 0; t < nTri; t++) {
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (let k = 0; k < 3; k++) {
+      const i = tris2[3 * t + k];
+      x0 = Math.min(x0, pts2[2 * i]); x1 = Math.max(x1, pts2[2 * i]);
+      z0 = Math.min(z0, pts2[2 * i + 1]); z1 = Math.max(z1, pts2[2 * i + 1]);
+    }
+    for (let gx = gi(x0); gx <= gi(x1); gx++) for (let gz = gi(z0); gz <= gi(z1); gz++) grid[gz * gn + gx].push(t);
+  }
+  const triScore = (t, x, z) => {
+    const a = tris2[3 * t], b = tris2[3 * t + 1], c = tris2[3 * t + 2];
+    const ax = pts2[2 * a], az = pts2[2 * a + 1];
+    const v0x = pts2[2 * b] - ax, v0z = pts2[2 * b + 1] - az, v1x = pts2[2 * c] - ax, v1z = pts2[2 * c + 1] - az;
+    const px = x - ax, pz = z - az, den = v0x * v1z - v1x * v0z;
+    const u = (px * v1z - v1x * pz) / den, v = (v0x * pz - px * v0z) / den;
+    return Math.min(u, v, 1 - u - v);
+  };
+  const bary = new Float64Array(4);
+  return function locate(x, y, z) {
+    let best = -1, bestS = -Infinity;
+    const cx = gi(x), cz = gi(z);
+    for (let r = 0; r <= 3 && bestS < 0; r++) {
+      for (let gz = Math.max(0, cz - r); gz <= Math.min(gn - 1, cz + r); gz++) {
+        for (let gx = Math.max(0, cx - r); gx <= Math.min(gn - 1, cx + r); gx++) {
+          for (const t of grid[gz * gn + gx]) {
+            const s = triScore(t, x, z);
+            if (s > bestS) { bestS = s; best = t; }
+          }
+        }
+      }
+    }
+    const fl = ((y + SHAPE.thick / 2) / SHAPE.thick) * layers;
+    const l = Math.max(0, Math.min(layers - 1, Math.floor(fl)));
+    let bt = -1, bs = -Infinity;
+    const out = [0, 0, 0, 0, 0];
+    for (let k = 0; k < 3; k++) {
+      const t = (l * nTri + best) * 3 + k;
+      tetBary(rest, tets, t, x, y, z, bary);
+      const s = Math.min(bary[0], bary[1], bary[2], bary[3]);
+      if (s > bs) { bs = s; bt = t; out[1] = bary[0]; out[2] = bary[1]; out[3] = bary[2]; out[4] = bary[3]; }
+    }
+    out[0] = bt;
+    return out;
+  };
+}
+
+function tetBary(x, tets, t, px, py, pz, out) {
+  const i0 = tets[4 * t], i1 = tets[4 * t + 1], i2 = tets[4 * t + 2], i3 = tets[4 * t + 3];
+  const ox = x[3 * i0], oy = x[3 * i0 + 1], oz = x[3 * i0 + 2];
+  const ax = x[3 * i1] - ox, ay = x[3 * i1 + 1] - oy, az = x[3 * i1 + 2] - oz;
+  const bx = x[3 * i2] - ox, by = x[3 * i2 + 1] - oy, bz = x[3 * i2 + 2] - oz;
+  const cx = x[3 * i3] - ox, cy = x[3 * i3 + 1] - oy, cz = x[3 * i3 + 2] - oz;
+  const qx = px - ox, qy = py - oy, qz = pz - oz;
+  const det = ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx);
+  const u = (qx * (by * cz - bz * cy) - qy * (bx * cz - bz * cx) + qz * (bx * cy - by * cx)) / det;
+  const v = (ax * (qy * cz - qz * cy) - ay * (qx * cz - qz * cx) + az * (qx * cy - qy * cx)) / det;
+  const w = (ax * (by * qz - bz * qy) - ay * (bx * qz - bz * qx) + az * (bx * qy - by * qx)) / det;
+  out[0] = 1 - u - v - w; out[1] = u; out[2] = v; out[3] = w;
+}
+
+// ---- 04-physics.js
+// XPBD tetrahedral soft body: co-rotational shape matching, volume, strain limits, edge damping, floor friction, grab.
+const GRAVITY = 12;
+const SUBSTEPS = 10;
+const STEP = 1 / 60;
+const MAX_PATCH = 160;
+
+function createBody(mesh) {
+  const { nv, nt, tets, edges, rest } = mesh;
+  const ne = edges.length / 2;
+  const B = {
+    mesh, nv, nt, ne,
+    x: new Float64Array(nv * 3), xp: new Float64Array(nv * 3), v: new Float64Array(nv * 3),
+    m: new Float64Array(nv), w: new Float64Array(nv),
+    restVol: new Float64Array(nt), DmInv: new Float64Array(nt * 9), q: new Float64Array(nt * 4),
+    restOff: new Float64Array(nt * 12),
+    edgeLen: new Float64Array(ne),
+    restVolume: 0,
+    // Tunables from the panel.
+    firmness: 0.55, damping: 0.35,
+    // Grab patch.
+    grab: {
+      active: false, n: 0, idx: new Int32Array(MAX_PATCH), wt: new Float64Array(MAX_PATCH),
+      off: new Float64Array(MAX_PATCH * 3), target: new Float64Array(3), axis: new Float64Array(3), twist: 0,
+    },
+  };
+
+  for (let t = 0; t < nt; t++) {
+    const a = tets[4 * t], b = tets[4 * t + 1], c = tets[4 * t + 2], d = tets[4 * t + 3];
+    const V = tetVolume(rest, a, b, c, d);
+    B.restVol[t] = V; B.restVolume += V;
+    for (const i of [a, b, c, d]) B.m[i] += V / 4;
+    // Dm = [b-a, c-a, d-a] (columns), store its inverse row-major.
+    const m = new Float64Array(9);
+    for (let k = 0; k < 3; k++) {
+      const j = [b, c, d][k];
+      m[k] = rest[3 * j] - rest[3 * a]; m[3 + k] = rest[3 * j + 1] - rest[3 * a + 1]; m[6 + k] = rest[3 * j + 2] - rest[3 * a + 2];
+    }
+    invert3(m, B.DmInv, 9 * t);
+    // Rest offsets from the tet centroid (equal weights inside a tet).
+    const cx = (rest[3 * a] + rest[3 * b] + rest[3 * c] + rest[3 * d]) / 4;
+    const cy = (rest[3 * a + 1] + rest[3 * b + 1] + rest[3 * c + 1] + rest[3 * d + 1]) / 4;
+    const cz = (rest[3 * a + 2] + rest[3 * b + 2] + rest[3 * c + 2] + rest[3 * d + 2]) / 4;
+    [a, b, c, d].forEach((j, k) => {
+      B.restOff[12 * t + 3 * k] = rest[3 * j] - cx;
+      B.restOff[12 * t + 3 * k + 1] = rest[3 * j + 1] - cy;
+      B.restOff[12 * t + 3 * k + 2] = rest[3 * j + 2] - cz;
+    });
+  }
+  for (let i = 0; i < nv; i++) B.w[i] = 1 / B.m[i];
+  for (let e = 0; e < ne; e++) {
+    const a = edges[2 * e], b = edges[2 * e + 1];
+    B.edgeLen[e] = Math.hypot(rest[3 * a] - rest[3 * b], rest[3 * a + 1] - rest[3 * b + 1], rest[3 * a + 2] - rest[3 * b + 2]);
+  }
+  resetBody(B);
+  return B;
+}
+
+function invert3(m, out, o) {
+  const [a, b, c, d, e, f, g, h, i] = m;
+  const A = e * i - f * h, Bc = -(d * i - f * g), C = d * h - e * g;
+  const det = a * A + b * Bc + c * C;
+  out[o] = A / det; out[o + 1] = -(b * i - c * h) / det; out[o + 2] = (b * f - c * e) / det;
+  out[o + 3] = Bc / det; out[o + 4] = (a * i - c * g) / det; out[o + 5] = -(a * f - c * d) / det;
+  out[o + 6] = C / det; out[o + 7] = -(a * h - b * g) / det; out[o + 8] = (a * e - b * d) / det;
+}
+
+function resetBody(B) {
+  const { rest } = B.mesh;
+  for (let i = 0; i < B.nv; i++) {
+    B.x[3 * i] = rest[3 * i]; B.x[3 * i + 1] = rest[3 * i + 1] + DROP_HEIGHT; B.x[3 * i + 2] = rest[3 * i + 2];
+  }
+  B.xp.set(B.x); B.v.fill(0);
+  for (let t = 0; t < B.nt; t++) { B.q[4 * t] = 0; B.q[4 * t + 1] = 0; B.q[4 * t + 2] = 0; B.q[4 * t + 3] = 1; }
+  B.grab.active = false;
+}
+
+function stepBody(B) {
+  const dt = STEP / SUBSTEPS;
+  const kShape = 0.003 * Math.pow(50, B.firmness);
+  const kDamp = 1 - Math.exp(-dt * 90 * B.damping);
+  const settle = Math.exp(-dt * 0.25);
+  const { x, xp, v, nv } = B;
+  for (let s = 0; s < SUBSTEPS; s++) {
+    for (let i = 0; i < nv * 3; i += 3) {
+      v[i + 1] -= GRAVITY * dt;
+      xp[i] = x[i]; xp[i + 1] = x[i + 1]; xp[i + 2] = x[i + 2];
+      x[i] += v[i] * dt; x[i + 1] += v[i + 1] * dt; x[i + 2] += v[i + 2] * dt;
+    }
+    if (B.grab.active) solveGrab(B);
+    solveTets(B, kShape, dt);
+    solveStrain(B);
+    solveFloor(B);
+    const inv = 1 / dt;
+    for (let i = 0; i < nv * 3; i++) v[i] = (x[i] - xp[i]) * inv * settle;
+    dampEdges(B, kDamp);
+  }
+}
+
+function solveGrab(B) {
+  const g = B.grab, x = B.x, k = 0.35;
+  const ax = g.axis[0], ay = g.axis[1], az = g.axis[2];
+  const c = Math.cos(g.twist), s = Math.sin(g.twist);
+  for (let p = 0; p < g.n; p++) {
+    const i = g.idx[p];
+    const ox = g.off[3 * p], oy = g.off[3 * p + 1], oz = g.off[3 * p + 2];
+    // Rodrigues rotation of the offset about the view axis.
+    const d = ax * ox + ay * oy + az * oz;
+    const cx = ay * oz - az * oy, cy = az * ox - ax * oz, cz = ax * oy - ay * ox;
+    const gx = g.target[0] + ox * c + cx * s + ax * d * (1 - c);
+    const gy = Math.max(0.012, g.target[1] + oy * c + cy * s + ay * d * (1 - c));
+    const gz = g.target[2] + oz * c + cz * s + az * d * (1 - c);
+    const f = k * g.wt[p];
+    x[3 * i] += (gx - x[3 * i]) * f; x[3 * i + 1] += (gy - x[3 * i + 1]) * f; x[3 * i + 2] += (gz - x[3 * i + 2]) * f;
+  }
+}
+
+function solveTets(B, kShape, dt) {
+  const { x, w, q, DmInv, restOff, restVol } = B;
+  const tets = B.mesh.tets;
+  for (let t = 0; t < B.nt; t++) {
+    const i0 = 3 * tets[4 * t], i1 = 3 * tets[4 * t + 1], i2 = 3 * tets[4 * t + 2], i3 = 3 * tets[4 * t + 3];
+    const x0 = x[i0], y0 = x[i0 + 1], z0 = x[i0 + 2];
+    const e1x = x[i1] - x0, e1y = x[i1 + 1] - y0, e1z = x[i1 + 2] - z0;
+    const e2x = x[i2] - x0, e2y = x[i2 + 1] - y0, e2z = x[i2 + 2] - z0;
+    const e3x = x[i3] - x0, e3y = x[i3 + 1] - y0, e3z = x[i3 + 2] - z0;
+    // F = Ds * DmInv (row-major DmInv).
+    const o = 9 * t;
+    const d0 = DmInv[o], d1 = DmInv[o + 1], d2 = DmInv[o + 2], d3 = DmInv[o + 3], d4 = DmInv[o + 4], d5 = DmInv[o + 5], d6 = DmInv[o + 6], d7 = DmInv[o + 7], d8 = DmInv[o + 8];
+    const f00 = e1x * d0 + e2x * d3 + e3x * d6, f01 = e1x * d1 + e2x * d4 + e3x * d7, f02 = e1x * d2 + e2x * d5 + e3x * d8;
+    const f10 = e1y * d0 + e2y * d3 + e3y * d6, f11 = e1y * d1 + e2y * d4 + e3y * d7, f12 = e1y * d2 + e2y * d5 + e3y * d8;
+    const f20 = e1z * d0 + e2z * d3 + e3z * d6, f21 = e1z * d1 + e2z * d4 + e3z * d7, f22 = e1z * d2 + e2z * d5 + e3z * d8;
+
+    // Warm-started rotation extraction (Müller et al. 2016); always a proper rotation, so inversions recover.
+    let qx = q[4 * t], qy = q[4 * t + 1], qz = q[4 * t + 2], qw = q[4 * t + 3];
+    let r00 = 1, r01 = 0, r02 = 0, r10 = 0, r11 = 1, r12 = 0, r20 = 0, r21 = 0, r22 = 1;
+    for (let it = 0; it < 2; it++) {
+      r00 = 1 - 2 * (qy * qy + qz * qz); r01 = 2 * (qx * qy - qw * qz); r02 = 2 * (qx * qz + qw * qy);
+      r10 = 2 * (qx * qy + qw * qz); r11 = 1 - 2 * (qx * qx + qz * qz); r12 = 2 * (qy * qz - qw * qx);
+      r20 = 2 * (qx * qz - qw * qy); r21 = 2 * (qy * qz + qw * qx); r22 = 1 - 2 * (qx * qx + qy * qy);
+      // omega = sum_c (R_c x F_c) / |sum_c R_c . F_c|
+      let wx = (r10 * f20 - r20 * f10) + (r11 * f21 - r21 * f11) + (r12 * f22 - r22 * f12);
+      let wy = (r20 * f00 - r00 * f20) + (r21 * f01 - r01 * f21) + (r22 * f02 - r02 * f22);
+      let wz = (r00 * f10 - r10 * f00) + (r01 * f11 - r11 * f01) + (r02 * f12 - r12 * f02);
+      const den = Math.abs(r00 * f00 + r10 * f10 + r20 * f20 + r01 * f01 + r11 * f11 + r21 * f21 + r02 * f02 + r12 * f12 + r22 * f22) + 1e-9;
+      wx /= den; wy /= den; wz /= den;
+      const ang = Math.hypot(wx, wy, wz);
+      if (ang < 1e-9) break;
+      const sa = Math.sin(ang * 0.5) / ang, ca = Math.cos(ang * 0.5);
+      const ux = wx * sa, uy = wy * sa, uz = wz * sa;
+      const nx = ca * qx + ux * qw + uy * qz - uz * qy;
+      const ny = ca * qy - ux * qz + uy * qw + uz * qx;
+      const nz = ca * qz + ux * qy - uy * qx + uz * qw;
+      const nw = ca * qw - ux * qx - uy * qy - uz * qz;
+      const l = 1 / Math.hypot(nx, ny, nz, nw);
+      qx = nx * l; qy = ny * l; qz = nz * l; qw = nw * l;
+    }
+    r00 = 1 - 2 * (qy * qy + qz * qz); r01 = 2 * (qx * qy - qw * qz); r02 = 2 * (qx * qz + qw * qy);
+    r10 = 2 * (qx * qy + qw * qz); r11 = 1 - 2 * (qx * qx + qz * qz); r12 = 2 * (qy * qz - qw * qx);
+    r20 = 2 * (qx * qz - qw * qy); r21 = 2 * (qy * qz + qw * qx); r22 = 1 - 2 * (qx * qx + qy * qy);
+    q[4 * t] = qx; q[4 * t + 1] = qy; q[4 * t + 2] = qz; q[4 * t + 3] = qw;
+
+    // Shape matching: pull each vertex toward the rotated rest shape about the (mass-weighted) centroid.
+    const w0 = w[i0 / 3], w1 = w[i1 / 3], w2 = w[i2 / 3], w3 = w[i3 / 3];
+    const m0 = 1 / w0, m1 = 1 / w1, m2 = 1 / w2, m3 = 1 / w3, mt = m0 + m1 + m2 + m3;
+    const cx = (x[i0] * m0 + x[i1] * m1 + x[i2] * m2 + x[i3] * m3) / mt;
+    const cy = (x[i0 + 1] * m0 + x[i1 + 1] * m1 + x[i2 + 1] * m2 + x[i3 + 1] * m3) / mt;
+    const cz = (x[i0 + 2] * m0 + x[i1 + 2] * m1 + x[i2 + 2] * m2 + x[i3 + 2] * m3) / mt;
+    // Rest centroid with the same mass weights.
+    const ro = 12 * t;
+    const rcx = (restOff[ro] * m0 + restOff[ro + 3] * m1 + restOff[ro + 6] * m2 + restOff[ro + 9] * m3) / mt;
+    const rcy = (restOff[ro + 1] * m0 + restOff[ro + 4] * m1 + restOff[ro + 7] * m2 + restOff[ro + 10] * m3) / mt;
+    const rcz = (restOff[ro + 2] * m0 + restOff[ro + 5] * m1 + restOff[ro + 8] * m2 + restOff[ro + 11] * m3) / mt;
+    const ids = TMP_IDS; ids[0] = i0; ids[1] = i1; ids[2] = i2; ids[3] = i3;
+    for (let k = 0; k < 4; k++) {
+      const ox = restOff[ro + 3 * k] - rcx, oy = restOff[ro + 3 * k + 1] - rcy, oz = restOff[ro + 3 * k + 2] - rcz;
+      const i = ids[k];
+      x[i] += (cx + r00 * ox + r01 * oy + r02 * oz - x[i]) * kShape;
+      x[i + 1] += (cy + r10 * ox + r11 * oy + r12 * oz - x[i + 1]) * kShape;
+      x[i + 2] += (cz + r20 * ox + r21 * oy + r22 * oz - x[i + 2]) * kShape;
+    }
+
+    // Volume constraint (XPBD, zero compliance): C = V - V0.
+    const a1x = x[i1] - x[i0], a1y = x[i1 + 1] - x[i0 + 1], a1z = x[i1 + 2] - x[i0 + 2];
+    const a2x = x[i2] - x[i0], a2y = x[i2 + 1] - x[i0 + 1], a2z = x[i2 + 2] - x[i0 + 2];
+    const a3x = x[i3] - x[i0], a3y = x[i3 + 1] - x[i0 + 1], a3z = x[i3 + 2] - x[i0 + 2];
+    const g1x = (a2y * a3z - a2z * a3y) / 6, g1y = (a2z * a3x - a2x * a3z) / 6, g1z = (a2x * a3y - a2y * a3x) / 6;
+    const g2x = (a3y * a1z - a3z * a1y) / 6, g2y = (a3z * a1x - a3x * a1z) / 6, g2z = (a3x * a1y - a3y * a1x) / 6;
+    const g3x = (a1y * a2z - a1z * a2y) / 6, g3y = (a1z * a2x - a1x * a2z) / 6, g3z = (a1x * a2y - a1y * a2x) / 6;
+    const g0x = -g1x - g2x - g3x, g0y = -g1y - g2y - g3y, g0z = -g1z - g2z - g3z;
+    const C = a1x * g1x + a1y * g1y + a1z * g1z - restVol[t];
+    const den = w0 * (g0x * g0x + g0y * g0y + g0z * g0z) + w1 * (g1x * g1x + g1y * g1y + g1z * g1z) +
+      w2 * (g2x * g2x + g2y * g2y + g2z * g2z) + w3 * (g3x * g3x + g3y * g3y + g3z * g3z);
+    if (den < 1e-14) continue;
+    const lam = -C / den;
+    x[i0] += lam * w0 * g0x; x[i0 + 1] += lam * w0 * g0y; x[i0 + 2] += lam * w0 * g0z;
+    x[i1] += lam * w1 * g1x; x[i1 + 1] += lam * w1 * g1y; x[i1 + 2] += lam * w1 * g1z;
+    x[i2] += lam * w2 * g2x; x[i2 + 1] += lam * w2 * g2y; x[i2 + 2] += lam * w2 * g2z;
+    x[i3] += lam * w3 * g3x; x[i3 + 1] += lam * w3 * g3y; x[i3 + 2] += lam * w3 * g3z;
+  }
+}
+const TMP_IDS = new Int32Array(4);
+
+// Hard edge strain limits.
+function solveStrain(B) {
+  const { x, w, edgeLen } = B, edges = B.mesh.edges;
+  for (let e = 0; e < B.ne; e++) {
+    const a = 3 * edges[2 * e], b = 3 * edges[2 * e + 1];
+    const dx = x[b] - x[a], dy = x[b + 1] - x[a + 1], dz = x[b + 2] - x[a + 2];
+    const l = Math.sqrt(dx * dx + dy * dy + dz * dz), L = edgeLen[e];
+    let target;
+    if (l > L * 1.9) target = L * 1.9; else if (l < L * 0.4) target = L * 0.4; else continue;
+    if (l < 1e-9) continue;
+    const wa = w[a / 3], wb = w[b / 3], s = (l - target) / (l * (wa + wb));
+    x[a] += dx * s * wa; x[a + 1] += dy * s * wa; x[a + 2] += dz * s * wa;
+    x[b] -= dx * s * wb; x[b + 1] -= dy * s * wb; x[b + 2] -= dz * s * wb;
+  }
+}
+
+// Floor at y = 0 with Coulomb friction (static/kinetic) on the substep displacement.
+function solveFloor(B) {
+  const { x, xp } = B, muS = 0.9, muK = 0.65;
+  for (let i = 0; i < B.nv * 3; i += 3) {
+    const pen = -x[i + 1];
+    if (pen <= 0) continue;
+    x[i + 1] = 0;
+    const tx = x[i] - xp[i], tz = x[i + 2] - xp[i + 2], tl = Math.hypot(tx, tz);
+    if (tl < muS * pen) { x[i] = xp[i]; x[i + 2] = xp[i + 2]; } else {
+      const f = Math.min(1, (muK * pen) / tl);
+      x[i] -= tx * f; x[i + 2] -= tz * f;
+    }
+  }
+}
+
+// Relative-velocity damping along edges (internal damping, leaves rigid motion alone).
+function dampEdges(B, k) {
+  if (k <= 0) return;
+  const { x, v, w } = B, edges = B.mesh.edges;
+  for (let e = 0; e < B.ne; e++) {
+    const a = 3 * edges[2 * e], b = 3 * edges[2 * e + 1];
+    let nx = x[b] - x[a], ny = x[b + 1] - x[a + 1], nz = x[b + 2] - x[a + 2];
+    const l = Math.sqrt(nx * nx + ny * ny + nz * nz);
+    if (l < 1e-9) continue;
+    nx /= l; ny /= l; nz /= l;
+    const vn = (v[b] - v[a]) * nx + (v[b + 1] - v[a + 1]) * ny + (v[b + 2] - v[a + 2]) * nz;
+    const wa = w[a / 3], wb = w[b / 3], s = (k * vn) / (wa + wb);
+    v[a] += nx * s * wa; v[a + 1] += ny * s * wa; v[a + 2] += nz * s * wa;
+    v[b] -= nx * s * wb; v[b + 1] -= ny * s * wb; v[b + 2] -= nz * s * wb;
+  }
+}
+
+function bodyCentroid(B, out) {
+  let cx = 0, cy = 0, cz = 0, mt = 0;
+  for (let i = 0; i < B.nv; i++) {
+    const m = B.m[i]; mt += m;
+    cx += B.x[3 * i] * m; cy += B.x[3 * i + 1] * m; cz += B.x[3 * i + 2] * m;
+  }
+  out[0] = cx / mt; out[1] = cy / mt; out[2] = cz / mt;
+  return out;
+}
+
+// Give the whole body a rigid velocity: linear vel + spin omega about its centroid.
+const _c = new Float64Array(3);
+function setRigidVelocity(B, vx, vy, vz, ox, oy, oz) {
+  bodyCentroid(B, _c);
+  for (let i = 0; i < B.nv; i++) {
+    const rx = B.x[3 * i] - _c[0], ry = B.x[3 * i + 1] - _c[1], rz = B.x[3 * i + 2] - _c[2];
+    B.v[3 * i] = vx + oy * rz - oz * ry;
+    B.v[3 * i + 1] = vy + oz * rx - ox * rz;
+    B.v[3 * i + 2] = vz + ox * ry - oy * rx;
+  }
+}
+
+// Toss with a spin about a horizontal axis so it flips and lands on its other face.
+function turnOver(B, axX, axZ) {
+  const l = Math.hypot(axX, axZ) || 1;
+  B.grab.active = false;
+  const vy = 6.2, air = (2 * vy) / GRAVITY, w = (Math.PI / air) * 1.04;
+  setRigidVelocity(B, 0, vy, 0, (axX / l) * w, 0, (axZ / l) * w);
+}
+
+function nudge(B, rnd) {
+  const phi = rnd() * Math.PI * 2;
+  bodyCentroid(B, _c);
+  for (let i = 0; i < B.nv; i++) {
+    const rx = B.x[3 * i] - _c[0], rz = B.x[3 * i + 2] - _c[2];
+    const side = (rx * Math.cos(phi) + rz * Math.sin(phi)) / SHAPE.outer;
+    B.v[3 * i + 1] += 1.7 + 1.5 * Math.max(0, side);
+    B.v[3 * i] += 0.4 * Math.cos(phi); B.v[3 * i + 2] += 0.4 * Math.sin(phi);
+  }
+}
+
+function bodyStats(B, out) {
+  let vol = 0, ke = 0;
+  const t4 = B.mesh.tets;
+  for (let t = 0; t < B.nt; t++) vol += tetVolume(B.x, t4[4 * t], t4[4 * t + 1], t4[4 * t + 2], t4[4 * t + 3]);
+  for (let i = 0; i < B.nv; i++) {
+    const vx = B.v[3 * i], vy = B.v[3 * i + 1], vz = B.v[3 * i + 2];
+    ke += 0.5 * B.m[i] * (vx * vx + vy * vy + vz * vz);
+  }
+  out.volume = vol / B.restVolume; out.ke = ke;
+  return out;
+}
+
+// ---- 05-surface.js
+// Smooth render surface (rounded, scalloped ring) and juice cells / bubbles, all embedded in the tet mesh.
+const SURF_STRIDE = 12; // pos.xyz,1 | normal.xyz,0 | tet quat xyzw
+
+function buildSurface(mesh, locate) {
+  const NT = SHAPE.scallops * 12;
+  const H = SHAPE.thick / 2, b = SHAPE.bevel, ri = SHAPE.hole;
+  // Profile of the rounded cross-section, closed loop: [kind, segments].
+  const prof = (ro) => {
+    const out = [];
+    const line = (r0, y0, r1, y1, n) => { for (let k = 0; k < n; k++) out.push(r0 + (r1 - r0) * k / n, y0 + (y1 - y0) * k / n); };
+    const arc = (cr, cy, a0, a1, n) => { for (let k = 0; k < n; k++) { const a = a0 + (a1 - a0) * k / n; out.push(cr + b * Math.cos(a), cy + b * Math.sin(a)); } };
+    const P = Math.PI / 2;
+    line(ri + b, H, ro - b, H, 16);
+    arc(ro - b, H - b, P, 0, 6);
+    line(ro, H - b, ro, -H + b, 2);
+    arc(ro - b, -H + b, 0, -P, 6);
+    line(ro - b, -H, ri + b, -H, 16);
+    arc(ri + b, -H + b, -P, -2 * P, 6);
+    line(ri, -H + b, ri, H - b, 2);
+    arc(ri + b, H - b, 2 * P, P, 6);
+    return out;
+  };
+  const NP = prof(1).length / 2;
+  const nRV = NT * NP;
+  const restPos = new Float32Array(nRV * 4);
+  for (let i = 0; i < NT; i++) {
+    const th = (i / NT) * Math.PI * 2, p = prof(outerRadius(th));
+    for (let j = 0; j < NP; j++) {
+      const v = i * NP + j;
+      restPos[4 * v] = p[2 * j] * Math.cos(th); restPos[4 * v + 1] = p[2 * j + 1]; restPos[4 * v + 2] = p[2 * j] * Math.sin(th);
+    }
+  }
+  let idx = new Uint32Array(NT * NP * 6);
+  let k = 0;
+  for (let i = 0; i < NT; i++) {
+    for (let j = 0; j < NP; j++) {
+      const a = i * NP + j, b2 = ((i + 1) % NT) * NP + j, c = ((i + 1) % NT) * NP + (j + 1) % NP, d = i * NP + (j + 1) % NP;
+      idx[k++] = a; idx[k++] = b2; idx[k++] = c; idx[k++] = a; idx[k++] = c; idx[k++] = d;
+    }
+  }
+  // Outward winding: closed-mesh signed volume must be positive.
+  let vol = 0;
+  for (let t = 0; t < idx.length; t += 3) {
+    const A = 4 * idx[t], Bq = 4 * idx[t + 1], C = 4 * idx[t + 2], r = restPos;
+    vol += r[A] * (r[Bq + 1] * r[C + 2] - r[Bq + 2] * r[C + 1]) - r[A + 1] * (r[Bq] * r[C + 2] - r[Bq + 2] * r[C]) + r[A + 2] * (r[Bq] * r[C + 1] - r[Bq + 1] * r[C]);
+  }
+  if (vol < 0) for (let t = 0; t < idx.length; t += 3) { const s = idx[t + 1]; idx[t + 1] = idx[t + 2]; idx[t + 2] = s; }
+
+  const tetOf = new Int32Array(nRV), bary = new Float32Array(nRV * 4);
+  for (let v = 0; v < nRV; v++) {
+    const L = locate(restPos[4 * v], restPos[4 * v + 1], restPos[4 * v + 2]);
+    tetOf[v] = L[0]; bary.set(L.slice(1), 4 * v);
+  }
+
+  return { nRV, NT, NP, restPos, idx, tetOf, bary, dyn: new Float32Array(nRV * SURF_STRIDE), nrm: new Float32Array(nRV * 3) };
+}
+
+function updateSurface(S, B) {
+  const { nRV, tetOf, bary, dyn, idx, nrm } = S;
+  const x = B.x, tets = B.mesh.tets, q = B.q;
+  for (let v = 0; v < nRV; v++) {
+    const t = tetOf[v], o = SURF_STRIDE * v;
+    const a = 3 * tets[4 * t], b = 3 * tets[4 * t + 1], c = 3 * tets[4 * t + 2], d = 3 * tets[4 * t + 3];
+    const w0 = bary[4 * v], w1 = bary[4 * v + 1], w2 = bary[4 * v + 2], w3 = bary[4 * v + 3];
+    dyn[o] = w0 * x[a] + w1 * x[b] + w2 * x[c] + w3 * x[d];
+    dyn[o + 1] = w0 * x[a + 1] + w1 * x[b + 1] + w2 * x[c + 1] + w3 * x[d + 1];
+    dyn[o + 2] = w0 * x[a + 2] + w1 * x[b + 2] + w2 * x[c + 2] + w3 * x[d + 2];
+    dyn[o + 3] = 1;
+    dyn[o + 8] = q[4 * t]; dyn[o + 9] = q[4 * t + 1]; dyn[o + 10] = q[4 * t + 2]; dyn[o + 11] = q[4 * t + 3];
+  }
+  nrm.fill(0);
+  for (let t = 0; t < idx.length; t += 3) {
+    const ia = idx[t], ib = idx[t + 1], ic = idx[t + 2];
+    const A = SURF_STRIDE * ia, Bq = SURF_STRIDE * ib, C = SURF_STRIDE * ic;
+    const ux = dyn[Bq] - dyn[A], uy = dyn[Bq + 1] - dyn[A + 1], uz = dyn[Bq + 2] - dyn[A + 2];
+    const vx = dyn[C] - dyn[A], vy = dyn[C + 1] - dyn[A + 1], vz = dyn[C + 2] - dyn[A + 2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    nrm[3 * ia] += nx; nrm[3 * ia + 1] += ny; nrm[3 * ia + 2] += nz;
+    nrm[3 * ib] += nx; nrm[3 * ib + 1] += ny; nrm[3 * ib + 2] += nz;
+    nrm[3 * ic] += nx; nrm[3 * ic + 1] += ny; nrm[3 * ic + 2] += nz;
+  }
+  for (let v = 0; v < nRV; v++) {
+    const nx = nrm[3 * v], ny = nrm[3 * v + 1], nz = nrm[3 * v + 2], l = 1 / (Math.hypot(nx, ny, nz) || 1);
+    const o = SURF_STRIDE * v;
+    dyn[o + 4] = nx * l; dyn[o + 5] = ny * l; dyn[o + 6] = nz * l; dyn[o + 7] = 0;
+  }
+}
+
+// Juice cells (type 0: elongated sacs along the radius) and air bubbles (type 1).
+const CELL_STRIDE = 8; // center.xyz, type | axis.xyz (half length), radius
+function buildInclusions(locate, rnd) {
+  const list = [];
+  for (let i = 0; i < 70; i++) {
+    const th = rnd() * Math.PI * 2, R = outerRadius(th);
+    const r = 0.64 + rnd() * (R - 0.8), half = 0.06 + rnd() * 0.07, rad = 0.016 + rnd() * 0.014;
+    const y = (rnd() * 2 - 1) * (0.2 - rad - 0.03);
+    const tilt = (rnd() - 0.5) * 0.4;
+    list.push([r * Math.cos(th), y, r * Math.sin(th), 0, Math.cos(th + tilt) * half, (rnd() - 0.5) * 0.02, Math.sin(th + tilt) * half, rad]);
+  }
+  for (let i = 0; i < 12; i++) {
+    const th = rnd() * Math.PI * 2, R = outerRadius(th);
+    const r = 0.6 + rnd() * (R - 0.75), rad = 0.012 + rnd() * 0.02;
+    const y = (rnd() * 2 - 1) * (0.18 - rad);
+    list.push([r * Math.cos(th), y, r * Math.sin(th), 1, rad, 0, 0, rad]);
+  }
+  const n = list.length;
+  const rest = new Float32Array(n * CELL_STRIDE), tetOf = new Int32Array(n), bary = new Float32Array(n * 4);
+  list.forEach((c, i) => {
+    rest.set(c, i * CELL_STRIDE);
+    const L = locate(c[0], c[1], c[2]);
+    tetOf[i] = L[0]; bary.set(L.slice(1), 4 * i);
+  });
+  return { n, rest, tetOf, bary, data: new Float32Array(n * CELL_STRIDE) };
+}
+
+function updateInclusions(I, B) {
+  const { n, rest, tetOf, bary, data } = I;
+  const x = B.x, tets = B.mesh.tets, Di = B.DmInv;
+  for (let i = 0; i < n; i++) {
+    const t = tetOf[i], o = CELL_STRIDE * i;
+    const a = 3 * tets[4 * t], b = 3 * tets[4 * t + 1], c = 3 * tets[4 * t + 2], d = 3 * tets[4 * t + 3];
+    const w0 = bary[4 * i], w1 = bary[4 * i + 1], w2 = bary[4 * i + 2], w3 = bary[4 * i + 3];
+    for (let k = 0; k < 3; k++) data[o + k] = w0 * x[a + k] + w1 * x[b + k] + w2 * x[c + k] + w3 * x[d + k];
+    data[o + 3] = rest[o + 3];
+    // Axis follows the local deformation gradient F = Ds * DmInv.
+    const rx = rest[o + 4], ry = rest[o + 5], rz = rest[o + 6], m = 9 * t;
+    const px = Di[m] * rx + Di[m + 1] * ry + Di[m + 2] * rz;
+    const py = Di[m + 3] * rx + Di[m + 4] * ry + Di[m + 5] * rz;
+    const pz = Di[m + 6] * rx + Di[m + 7] * ry + Di[m + 8] * rz;
+    for (let k = 0; k < 3; k++) data[o + 4 + k] = (x[b + k] - x[a + k]) * px + (x[c + k] - x[a + k]) * py + (x[d + k] - x[a + k]) * pz;
+    data[o + 7] = rest[o + 7];
+  }
+}
+
+// ---- 06-pick.js
+// Ray picking against the deformed render surface. Knows when a ray slips through the empty hole.
+const PICK = { hit: false, hole: false, t: 0, tri: 0, u: 0, v: 0, p: new Float64Array(3), rest: new Float64Array(3) };
+const _pc = new Float64Array(3);
+
+function pickSurface(S, B, o, d) {
+  const { dyn, idx, restPos } = S;
+  // Bounding sphere around the body centroid as an early out.
+  bodyCentroid(B, _pc);
+  const cx = _pc[0] - o[0], cy = _pc[1] - o[1], cz = _pc[2] - o[2];
+  const tc = cx * d[0] + cy * d[1] + cz * d[2];
+  const miss2 = cx * cx + cy * cy + cz * cz - tc * tc;
+  PICK.hit = false; PICK.hole = false;
+  if (miss2 > 3.2 * 3.2) return PICK;
+  let best = Infinity;
+  for (let t = 0; t < idx.length; t += 3) {
+    const A = SURF_STRIDE * idx[t], Bq = SURF_STRIDE * idx[t + 1], C = SURF_STRIDE * idx[t + 2];
+    const e1x = dyn[Bq] - dyn[A], e1y = dyn[Bq + 1] - dyn[A + 1], e1z = dyn[Bq + 2] - dyn[A + 2];
+    const e2x = dyn[C] - dyn[A], e2y = dyn[C + 1] - dyn[A + 1], e2z = dyn[C + 2] - dyn[A + 2];
+    const px = d[1] * e2z - d[2] * e2y, py = d[2] * e2x - d[0] * e2z, pz = d[0] * e2y - d[1] * e2x;
+    const det = e1x * px + e1y * py + e1z * pz;
+    if (Math.abs(det) < 1e-12) continue;
+    const inv = 1 / det;
+    const sx = o[0] - dyn[A], sy = o[1] - dyn[A + 1], sz = o[2] - dyn[A + 2];
+    const u = (sx * px + sy * py + sz * pz) * inv;
+    if (u < 0 || u > 1) continue;
+    const qx = sy * e1z - sz * e1y, qy = sz * e1x - sx * e1z, qz = sx * e1y - sy * e1x;
+    const v = (d[0] * qx + d[1] * qy + d[2] * qz) * inv;
+    if (v < 0 || u + v > 1) continue;
+    const t2 = (e2x * qx + e2y * qy + e2z * qz) * inv;
+    if (t2 > 1e-4 && t2 < best) { best = t2; PICK.tri = t; PICK.u = u; PICK.v = v; }
+  }
+  if (best < Infinity) {
+    PICK.hit = true; PICK.t = best;
+    for (let k = 0; k < 3; k++) PICK.p[k] = o[k] + d[k] * best;
+    const a = 4 * idx[PICK.tri], b = 4 * idx[PICK.tri + 1], c = 4 * idx[PICK.tri + 2], w = 1 - PICK.u - PICK.v;
+    for (let k = 0; k < 3; k++) PICK.rest[k] = w * restPos[a + k] + PICK.u * restPos[b + k] + PICK.v * restPos[c + k];
+  } else {
+    // A miss whose ray runs close to the centroid went through the hole.
+    PICK.hole = miss2 < (SHAPE.hole + 0.1) ** 2;
+  }
+  return PICK;
+}
+
+// Collect the soft patch around a rest-space hit point, with smooth weights.
+function beginGrab(B, restHit, worldHit, axis) {
+  const g = B.grab, rest = B.mesh.rest, R = 0.32;
+  g.n = 0;
+  for (let i = 0; i < B.nv && g.n < MAX_PATCH; i++) {
+    const dx = rest[3 * i] - restHit[0], dy = rest[3 * i + 1] - restHit[1], dz = rest[3 * i + 2] - restHit[2];
+    const dd = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (dd < R) {
+      const s = 1 - (dd / R) ** 2;
+      g.idx[g.n] = i; g.wt[g.n] = s * s; g.n++;
+    }
+  }
+  if (g.n === 0) return false;
+  for (let p = 0; p < g.n; p++) {
+    const i = g.idx[p];
+    for (let k = 0; k < 3; k++) g.off[3 * p + k] = B.x[3 * i + k] - worldHit[k];
+  }
+  g.target.set(worldHit); g.axis.set(axis); g.twist = 0; g.active = true;
+  return true;
+}
+
+// ---- 07-geometry.js
+// Static scene geometry: the studio cyclorama sweep and a unit sphere for cells and bubbles.
+function buildCyclorama() {
+  // Profile in (z, y): floor → quarter-circle cove → back wall. Extruded along x.
+  const prof = [];
+  for (let k = 0; k <= 12; k++) { const z = 14 - (19 * k) / 12; prof.push([z, 0, 0, 1]); }
+  const R = 5;
+  for (let k = 1; k <= 16; k++) {
+    const a = (k / 16) * (Math.PI / 2);
+    prof.push([-5 - R * Math.sin(a), R - R * Math.cos(a), Math.sin(a), Math.cos(a)]);
+  }
+  for (let k = 1; k <= 4; k++) prof.push([-10, 5 + (11 * k) / 4, 1, 0]);
+  const nx = 24, verts = [], idx = [];
+  for (let i = 0; i <= nx; i++) {
+    const x = -16 + (32 * i) / nx;
+    for (const [z, y, nz, ny] of prof) verts.push(x, y, z, 0, ny, nz);
+  }
+  const np = prof.length;
+  for (let i = 0; i < nx; i++) {
+    for (let j = 0; j < np - 1; j++) {
+      const a = i * np + j, b = (i + 1) * np + j;
+      idx.push(a, b, b + 1, a, b + 1, a + 1);
+    }
+  }
+  return { verts: new Float32Array(verts), idx: new Uint32Array(idx) };
+}
+
+function buildSphere(nu, nv) {
+  const verts = [], idx = [];
+  for (let j = 0; j <= nv; j++) {
+    const t = (j / nv) * Math.PI;
+    for (let i = 0; i <= nu; i++) {
+      const p = (i / nu) * Math.PI * 2;
+      // x is the long axis of the ellipsoid.
+      verts.push(Math.cos(t), Math.sin(t) * Math.cos(p), Math.sin(t) * Math.sin(p));
+    }
+  }
+  for (let j = 0; j < nv; j++) {
+    for (let i = 0; i < nu; i++) {
+      const a = j * (nu + 1) + i, b = a + nu + 1;
+      idx.push(a, b, a + 1, a + 1, b, b + 1);
+    }
+  }
+  return { verts: new Float32Array(verts), idx: new Uint16Array(idx) };
+}
+
+// ---- 08-renderer.js
+// WebGPU renderer: shadow map → height map → scene (MSAA) → jelly back faces → jelly (MSAA) + mesh overlay → tone map.
+const HDR = 'rgba16float';
+const MSAA = 4;
+const SHADOW_SIZE = 2048, HEIGHT_SIZE = 256;
+const SHADOW_EXT = 3.6, HEIGHT_EXT = 4, HEIGHT_EYE = 6;
+
+async function initGPU(canvas) {
+  if (!navigator.gpu) throw new Error('WebGPU is not available in this browser.');
+  const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+  if (!adapter) throw new Error('No suitable GPU adapter was found.');
+  const device = await adapter.requestDevice();
+  const ctx = canvas.getContext('webgpu');
+  const format = navigator.gpu.getPreferredCanvasFormat();
+  ctx.configure({ device, format, alphaMode: 'opaque' });
+  return { device, ctx, format };
+}
+
+function createRenderer(gpu, S, I, B) {
+  const { device, ctx, format } = gpu;
+  const U = GPUBufferUsage, T = GPUTextureUsage, SS = GPUShaderStage;
+  const buf = (data, usage) => {
+    const b = device.createBuffer({ size: (data.byteLength + 3) & ~3, usage: usage | U.COPY_DST });
+    device.queue.writeBuffer(b, 0, data);
+    return b;
+  };
+  const mod = (code) => device.createShaderModule({ code });
+  const common = WGSL.common;
+
+  // Geometry.
+  const cyc = buildCyclorama(), sph = buildSphere(16, 10);
+  const surfDyn = buf(S.dyn, U.VERTEX), surfRest = buf(S.restPos, U.VERTEX), surfIdx = buf(S.idx, U.INDEX);
+  const cyclVB = buf(cyc.verts, U.VERTEX), cycIB = buf(cyc.idx, U.INDEX);
+  const sphVB = buf(sph.verts, U.VERTEX), sphIB = buf(sph.idx, U.INDEX);
+  const cellVB = buf(I.data, U.VERTEX);
+  const linePos = new Float32Array(B.nv * 4);
+  const lineVB = buf(linePos, U.VERTEX), lineIB = buf(B.mesh.edges, U.INDEX);
+
+  // Uniforms.
+  const frameData = new Float32Array(76), frameUB = buf(frameData, U.UNIFORM);
+  const shadowData = new Float32Array(24), shadowUB = buf(shadowData, U.UNIFORM);
+  const heightData = new Float32Array(24), heightUB = buf(heightData, U.UNIFORM);
+  const postData = new Float32Array(4), postUB = buf(postData, U.UNIFORM);
+
+  const shadowTex = device.createTexture({ size: [SHADOW_SIZE, SHADOW_SIZE], format: HDR, usage: T.RENDER_ATTACHMENT | T.TEXTURE_BINDING });
+  const heightTex = device.createTexture({ size: [HEIGHT_SIZE, HEIGHT_SIZE], format: HDR, usage: T.RENDER_ATTACHMENT | T.TEXTURE_BINDING });
+  const linSamp = device.createSampler({ magFilter: 'linear', minFilter: 'linear' });
+
+  // Layouts.
+  const bglFrame = device.createBindGroupLayout({ entries: [
+    { binding: 0, visibility: SS.VERTEX | SS.FRAGMENT, buffer: { type: 'uniform' } },
+    { binding: 1, visibility: SS.FRAGMENT, texture: { sampleType: 'float' } },
+    { binding: 2, visibility: SS.FRAGMENT, texture: { sampleType: 'float' } },
+    { binding: 3, visibility: SS.FRAGMENT, sampler: { type: 'filtering' } },
+  ] });
+  const bglJelly = device.createBindGroupLayout({ entries: [
+    { binding: 0, visibility: SS.FRAGMENT, texture: { sampleType: 'float' } },
+    { binding: 1, visibility: SS.FRAGMENT, texture: { sampleType: 'unfilterable-float' } },
+  ] });
+  const bglPass = device.createBindGroupLayout({ entries: [{ binding: 0, visibility: SS.VERTEX, buffer: { type: 'uniform' } }] });
+  const bglPost = device.createBindGroupLayout({ entries: [
+    { binding: 0, visibility: SS.FRAGMENT, buffer: { type: 'uniform' } },
+    { binding: 1, visibility: SS.FRAGMENT, texture: { sampleType: 'float' } },
+  ] });
+  const layout = (...bgls) => device.createPipelineLayout({ bindGroupLayouts: bgls });
+
+  const frameBG = device.createBindGroup({ layout: bglFrame, entries: [
+    { binding: 0, resource: { buffer: frameUB } },
+    { binding: 1, resource: shadowTex.createView() },
+    { binding: 2, resource: heightTex.createView() },
+    { binding: 3, resource: linSamp },
+  ] });
+  const shadowBG = device.createBindGroup({ layout: bglPass, entries: [{ binding: 0, resource: { buffer: shadowUB } }] });
+  const heightBG = device.createBindGroup({ layout: bglPass, entries: [{ binding: 0, resource: { buffer: heightUB } }] });
+
+  // Vertex layouts.
+  const posOnly = [{ arrayStride: SURF_STRIDE * 4, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x4' }] }];
+  const surfLayout = [
+    { arrayStride: SURF_STRIDE * 4, attributes: [
+      { shaderLocation: 0, offset: 0, format: 'float32x4' },
+      { shaderLocation: 1, offset: 16, format: 'float32x4' },
+      { shaderLocation: 2, offset: 32, format: 'float32x4' },
+    ] },
+    { arrayStride: 16, attributes: [{ shaderLocation: 3, offset: 0, format: 'float32x4' }] },
+  ];
+  const depthMS = { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less' };
+
+  const pipe = (code, layoutObj, buffers, targets, extra) => {
+    const m = mod(code);
+    return device.createRenderPipeline(Object.assign({
+      layout: layoutObj,
+      vertex: { module: m, entryPoint: 'vs', buffers },
+      fragment: { module: m, entryPoint: 'fs', targets },
+      primitive: { topology: 'triangle-list', cullMode: 'none' },
+    }, extra));
+  };
+
+  const depthmapPipe = pipe(WGSL.depthmap, layout(bglPass), posOnly, [{
+    format: HDR,
+    blend: { color: { operation: 'min', srcFactor: 'one', dstFactor: 'one' }, alpha: { operation: 'max', srcFactor: 'one', dstFactor: 'one' } },
+  }], {});
+  const cycPipe = pipe(common + WGSL.cyc, layout(bglFrame), [{ arrayStride: 24, attributes: [
+    { shaderLocation: 0, offset: 0, format: 'float32x3' }, { shaderLocation: 1, offset: 12, format: 'float32x3' },
+  ] }], [{ format: HDR }], { depthStencil: depthMS, multisample: { count: MSAA } });
+  const cellPipe = pipe(common + WGSL.cells, layout(bglFrame), [
+    { arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }] },
+    { arrayStride: CELL_STRIDE * 4, stepMode: 'instance', attributes: [
+      { shaderLocation: 1, offset: 0, format: 'float32x4' }, { shaderLocation: 2, offset: 16, format: 'float32x4' },
+    ] },
+  ], [{ format: HDR }], { depthStencil: depthMS, multisample: { count: MSAA } });
+  const backPipe = pipe(common + WGSL.backface, layout(bglFrame), posOnly, [{ format: 'r32float' }], {
+    depthStencil: depthMS, primitive: { topology: 'triangle-list', cullMode: 'front' },
+  });
+  const jellyPipe = pipe(common + WGSL.jelly, layout(bglFrame, bglJelly), surfLayout, [{ format: HDR }], {
+    depthStencil: depthMS, multisample: { count: MSAA }, primitive: { topology: 'triangle-list', cullMode: 'back' },
+  });
+  const linePipe = pipe(common + WGSL.lines, layout(bglFrame), [{ arrayStride: 16, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x4' }] }], [{
+    format: HDR,
+    blend: { color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' }, alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' } },
+  }], {
+    depthStencil: { format: 'depth24plus', depthWriteEnabled: false, depthCompare: 'always' },
+    multisample: { count: MSAA }, primitive: { topology: 'line-list' },
+  });
+  const tonePipe = pipe(WGSL.tonemap, layout(bglPost), [], [{ format }], {});
+
+  // Size-dependent targets.
+  const MAP_CLEAR = { r: 1000, g: 1000, b: 1000, a: 0 };
+  const BG = { r: 0.3, g: 0.29, b: 0.28, a: 1 }, ZERO = { r: 0, g: 0, b: 0, a: 0 };
+  const mapDesc = (t) => ({ colorAttachments: [{ view: t.createView(), clearValue: MAP_CLEAR, loadOp: 'clear', storeOp: 'store' }] });
+  const shadowDesc = mapDesc(shadowTex), heightDesc = mapDesc(heightTex);
+  const toneDesc = { colorAttachments: [{ view: null, clearValue: BG, loadOp: 'clear', storeOp: 'store' }] };
+  const submitList = [null];
+  let W = 0, H = 0, tex = null, jellyBG = null, postBG = null, sceneDesc = null, backDesc = null, jellyDesc = null;
+  function resize(w, h) {
+    if (w === W && h === H) return;
+    W = w; H = h;
+    if (tex) for (const t of Object.values(tex)) t.destroy();
+    const mk = (format, usage, sampleCount = 1) => device.createTexture({ size: [w, h], format, usage, sampleCount });
+    tex = {
+      msColor: mk(HDR, T.RENDER_ATTACHMENT, MSAA),
+      msDepth: mk('depth24plus', T.RENDER_ATTACHMENT, MSAA),
+      scene: mk(HDR, T.RENDER_ATTACHMENT | T.TEXTURE_BINDING),
+      back: mk('r32float', T.RENDER_ATTACHMENT | T.TEXTURE_BINDING),
+      backDepth: mk('depth24plus', T.RENDER_ATTACHMENT),
+      final: mk(HDR, T.RENDER_ATTACHMENT | T.TEXTURE_BINDING),
+    };
+    jellyBG = device.createBindGroup({ layout: bglJelly, entries: [
+      { binding: 0, resource: tex.scene.createView() }, { binding: 1, resource: tex.back.createView() },
+    ] });
+    postBG = device.createBindGroup({ layout: bglPost, entries: [
+      { binding: 0, resource: { buffer: postUB } }, { binding: 1, resource: tex.final.createView() },
+    ] });
+    // Pass descriptors are built once per size and reused every frame.
+    const msColor = tex.msColor.createView(), msDepth = tex.msDepth.createView();
+    sceneDesc = {
+      colorAttachments: [{ view: msColor, resolveTarget: tex.scene.createView(), clearValue: BG, loadOp: 'clear', storeOp: 'store' }],
+      depthStencilAttachment: { view: msDepth, depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'store' },
+    };
+    backDesc = {
+      colorAttachments: [{ view: tex.back.createView(), clearValue: ZERO, loadOp: 'clear', storeOp: 'store' }],
+      depthStencilAttachment: { view: tex.backDepth.createView(), depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'store' },
+    };
+    jellyDesc = {
+      colorAttachments: [{ view: msColor, resolveTarget: tex.final.createView(), loadOp: 'load', storeOp: 'store' }],
+      depthStencilAttachment: { view: msDepth, depthLoadOp: 'load', depthStoreOp: 'discard' },
+    };
+  }
+
+  // Camera and light matrices (all preallocated).
+  const view = M4.create(), proj = M4.create(), vp = M4.create();
+  const lv = M4.create(), lp = M4.create(), hv = M4.create(), hp = M4.create();
+  const eye = [0, 0, 0], at = [0, 0, 0], lat = [0, 0, 0], leye = [0, 0, 0], heye = [0, 0, 0];
+  const UP = [0, 1, 0], NORTH = [0, 0, -1];
+  const lightDir = (() => { const l = [-0.55, 1.0, 0.5], n = Math.hypot(...l); return l.map((v) => v / n); })();
+  const invVP = M4.create();
+  const centroid = new Float64Array(3);
+
+  const cam = { yaw: 0.0, pitch: 0.62, dist: 6.2, target: [0, 0.35, 0], right: [1, 0, 0], fwd: [0, 0, -1], eye };
+
+  function updateCamera(aspect) {
+    const cp = Math.cos(cam.pitch);
+    eye[0] = cam.target[0] + Math.sin(cam.yaw) * cp * cam.dist;
+    eye[1] = cam.target[1] + Math.sin(cam.pitch) * cam.dist;
+    eye[2] = cam.target[2] + Math.cos(cam.yaw) * cp * cam.dist;
+    at[0] = cam.target[0]; at[1] = cam.target[1]; at[2] = cam.target[2];
+    M4.lookAt(view, eye, at, UP);
+    M4.perspective(proj, aspect < 1 ? 0.95 : 0.62, aspect, 0.1, 80);
+    M4.mul(vp, proj, view);
+    M4.invert(invVP, vp);
+    cam.right[0] = view[0]; cam.right[1] = view[4]; cam.right[2] = view[8];
+    cam.fwd[0] = -view[2]; cam.fwd[1] = -view[6]; cam.fwd[2] = -view[10];
+  }
+
+  // Ray through a canvas pixel (CSS px) → origin o, unit direction d.
+  function rayAt(px, py, cw, ch, o, d) {
+    const nx = (px / cw) * 2 - 1, ny = 1 - (py / ch) * 2;
+    const m = invVP;
+    const unproj = (z, out) => {
+      const x = m[0] * nx + m[4] * ny + m[8] * z + m[12], y = m[1] * nx + m[5] * ny + m[9] * z + m[13];
+      const zz = m[2] * nx + m[6] * ny + m[10] * z + m[14], w = m[3] * nx + m[7] * ny + m[11] * z + m[15];
+      out[0] = x / w; out[1] = y / w; out[2] = zz / w;
+    };
+    unproj(0, o); unproj(1, d);
+    d[0] -= o[0]; d[1] -= o[1]; d[2] -= o[2];
+    const l = Math.hypot(d[0], d[1], d[2]); d[0] /= l; d[1] /= l; d[2] /= l;
+  }
+
+  function writeFrame(tint, time, exposure, showMesh) {
+    bodyCentroid(B, centroid);
+    const cx = centroid[0], cz = centroid[2];
+    leye[0] = cx + lightDir[0] * 10; leye[1] = lightDir[1] * 10; leye[2] = cz + lightDir[2] * 10;
+    lat[0] = cx; lat[1] = 0; lat[2] = cz;
+    M4.lookAt(lv, leye, lat, UP);
+    M4.ortho(lp, -SHADOW_EXT, SHADOW_EXT, -SHADOW_EXT, SHADOW_EXT, 0.1, 30);
+    M4.mul(lp, lp, lv);
+    heye[0] = cx; heye[1] = HEIGHT_EYE; heye[2] = cz;
+    M4.lookAt(hv, heye, lat, NORTH);
+    M4.ortho(hp, -HEIGHT_EXT, HEIGHT_EXT, -HEIGHT_EXT, HEIGHT_EXT, 0.1, 20);
+    M4.mul(hp, hp, hv);
+
+    const f = frameData;
+    f.set(vp, 0); f.set(lp, 16); f.set(hp, 32);
+    f[48] = eye[0]; f[49] = eye[1]; f[50] = eye[2]; f[51] = 1;
+    f[52] = lightDir[0]; f[53] = lightDir[1]; f[54] = lightDir[2]; f[55] = 0;
+    f[56] = leye[0]; f[57] = leye[1]; f[58] = leye[2]; f[59] = 1;
+    f[60] = tint.absorb[0]; f[61] = tint.absorb[1]; f[62] = tint.absorb[2]; f[63] = 1;
+    f[64] = tint.color[0]; f[65] = tint.color[1]; f[66] = tint.color[2]; f[67] = 1;
+    f[68] = time; f[69] = exposure; f[70] = W; f[71] = H;
+    f[72] = HEIGHT_EYE; f[73] = HEIGHT_EXT; f[74] = showMesh ? 1 : 0; f[75] = 0;
+    device.queue.writeBuffer(frameUB, 0, f);
+
+    shadowData.set(lp, 0);
+    shadowData[16] = leye[0]; shadowData[17] = leye[1]; shadowData[18] = leye[2]; shadowData[19] = 1;
+    shadowData[20] = -lightDir[0]; shadowData[21] = -lightDir[1]; shadowData[22] = -lightDir[2]; shadowData[23] = 0;
+    device.queue.writeBuffer(shadowUB, 0, shadowData);
+    heightData.set(hp, 0);
+    heightData[16] = heye[0]; heightData[17] = heye[1]; heightData[18] = heye[2]; heightData[19] = 1;
+    heightData[20] = 0; heightData[21] = -1; heightData[22] = 0; heightData[23] = 0;
+    device.queue.writeBuffer(heightUB, 0, heightData);
+    postData[0] = exposure; postData[1] = time % 64;
+    device.queue.writeBuffer(postUB, 0, postData);
+  }
+
+  function render(opts) {
+    updateCamera(W / H);
+    writeFrame(opts.tint, opts.time, opts.exposure, opts.showMesh);
+    device.queue.writeBuffer(surfDyn, 0, S.dyn);
+    device.queue.writeBuffer(cellVB, 0, I.data);
+    if (opts.showMesh) {
+      for (let i = 0; i < B.nv; i++) {
+        linePos[4 * i] = B.x[3 * i]; linePos[4 * i + 1] = B.x[3 * i + 1]; linePos[4 * i + 2] = B.x[3 * i + 2]; linePos[4 * i + 3] = 1;
+      }
+      device.queue.writeBuffer(lineVB, 0, linePos);
+    }
+    const enc = device.createCommandEncoder();
+    const nIdx = S.idx.length;
+
+    let p = enc.beginRenderPass(shadowDesc);
+    p.setPipeline(depthmapPipe); p.setBindGroup(0, shadowBG);
+    p.setVertexBuffer(0, surfDyn); p.setIndexBuffer(surfIdx, 'uint32'); p.drawIndexed(nIdx);
+    p.end();
+    p = enc.beginRenderPass(heightDesc);
+    p.setPipeline(depthmapPipe); p.setBindGroup(0, heightBG);
+    p.setVertexBuffer(0, surfDyn); p.setIndexBuffer(surfIdx, 'uint32'); p.drawIndexed(nIdx);
+    p.end();
+
+    p = enc.beginRenderPass(sceneDesc);
+    p.setBindGroup(0, frameBG);
+    p.setPipeline(cycPipe); p.setVertexBuffer(0, cyclVB); p.setIndexBuffer(cycIB, 'uint32'); p.drawIndexed(cyc.idx.length);
+    p.setPipeline(cellPipe); p.setVertexBuffer(0, sphVB); p.setVertexBuffer(1, cellVB); p.setIndexBuffer(sphIB, 'uint16');
+    p.drawIndexed(sph.idx.length, I.n);
+    p.end();
+
+    p = enc.beginRenderPass(backDesc);
+    p.setPipeline(backPipe); p.setBindGroup(0, frameBG);
+    p.setVertexBuffer(0, surfDyn); p.setIndexBuffer(surfIdx, 'uint32'); p.drawIndexed(nIdx);
+    p.end();
+
+    p = enc.beginRenderPass(jellyDesc);
+    p.setPipeline(jellyPipe); p.setBindGroup(0, frameBG); p.setBindGroup(1, jellyBG);
+    p.setVertexBuffer(0, surfDyn); p.setVertexBuffer(1, surfRest); p.setIndexBuffer(surfIdx, 'uint32'); p.drawIndexed(nIdx);
+    if (opts.showMesh) {
+      p.setPipeline(linePipe); p.setBindGroup(0, frameBG);
+      p.setVertexBuffer(0, lineVB); p.setIndexBuffer(lineIB, 'uint32'); p.drawIndexed(B.mesh.edges.length);
+    }
+    p.end();
+
+    toneDesc.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+    p = enc.beginRenderPass(toneDesc);
+    p.setPipeline(tonePipe); p.setBindGroup(0, postBG); p.draw(3);
+    p.end();
+    submitList[0] = enc.finish();
+    device.queue.submit(submitList);
+  }
+
+  return { resize, render, rayAt, cam, updateCamera: () => updateCamera(W / H) };
+}
+
+// ---- 09-ui.js
+// Panel "The Specimen": tints, sliders, actions, toggles, keys and readouts.
+const TINTS = [
+  { name: 'Golden', swatch: '#e6ae38', absorb: [0.22, 0.85, 3.0], color: [1.0, 0.78, 0.3] },
+  { name: 'Amber', swatch: '#c46e1c', absorb: [0.36, 1.65, 4.6], color: [1.0, 0.55, 0.16] },
+  { name: 'Rosé', swatch: '#e597a0', absorb: [0.26, 1.75, 1.1], color: [1.0, 0.56, 0.6] },
+];
+
+function ringIcon(fill) {
+  // Tiny scalloped pineapple ring.
+  let d = '';
+  for (let i = 0; i <= 56; i++) {
+    const th = (i / 56) * Math.PI * 2, r = 10.5 * outerRadius(th) / SHAPE.outer;
+    d += (i ? 'L' : 'M') + (12 + r * Math.cos(th)).toFixed(2) + ' ' + (12 + r * Math.sin(th)).toFixed(2);
+  }
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}Z M12 8.1a3.9 3.9 0 1 0 0.01 0Z" fill="${fill}" fill-rule="evenodd" stroke="rgba(38,33,27,.45)" stroke-width=".6"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="1.6"/></svg>`;
+}
+
+function createUI(h) {
+  const $ = (id) => document.getElementById(id);
+  const state = { tint: TINTS[0], paused: false, slow: false, showMesh: false };
+
+  const sw = $('swatches');
+  TINTS.forEach((t, i) => {
+    const b = document.createElement('button');
+    b.className = 'swatch'; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', i === 0 ? 'true' : 'false');
+    b.innerHTML = ringIcon(t.swatch) + `<span>${t.name}</span>`;
+    b.addEventListener('click', () => {
+      state.tint = t;
+      for (const c of sw.children) c.setAttribute('aria-checked', c === b ? 'true' : 'false');
+    });
+    sw.appendChild(b);
+  });
+
+  const slider = (id, fmt, set) => {
+    const el = $(id), out = $(id + '-out');
+    const upd = () => { const v = +el.value; out.textContent = fmt(v); set(v); };
+    el.addEventListener('input', upd); upd();
+  };
+  slider('firm', (v) => (v < 0.25 ? 'Wobbly' : v < 0.6 ? 'Gummy' : v < 0.85 ? 'Firm' : 'Set') + ` · ${Math.round(v * 100)}`, h.setFirmness);
+  slider('damp', (v) => `${Math.round(v * 100)}%`, h.setDamping);
+
+  const pauseBtn = $('b-pause');
+  const setPaused = (p) => {
+    state.paused = p; pauseBtn.textContent = p ? 'Resume' : 'Pause'; pauseBtn.setAttribute('aria-pressed', String(p));
+  };
+  $('b-nudge').addEventListener('click', h.nudge);
+  $('b-turn').addEventListener('click', h.turnOver);
+  $('b-reset').addEventListener('click', h.reset);
+  pauseBtn.addEventListener('click', () => setPaused(!state.paused));
+  $('t-mesh').addEventListener('change', (e) => { state.showMesh = e.target.checked; });
+  $('t-slow').addEventListener('change', (e) => { state.slow = e.target.checked; });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (e.code === 'Space') { e.preventDefault(); setPaused(!state.paused); }
+    else if (k === 'n') h.nudge();
+    else if (k === 't') h.turnOver();
+    else if (k === 'r') h.reset();
+  });
+
+  const roMass = $('ro-mass'), roVol = $('ro-vol'), roKe = $('ro-ke'), status = $('status');
+  let statusTimer = 0;
+  state.readouts = (massG, volFrac, keMicroJ) => {
+    roMass.textContent = `${massG.toFixed(0)} g`;
+    roVol.textContent = `${(volFrac * 100).toFixed(1)}%`;
+    roKe.textContent = keMicroJ < 1000 ? `${keMicroJ.toFixed(keMicroJ < 10 ? 2 : 0)} µJ` : `${(keMicroJ / 1000).toFixed(2)} mJ`;
+  };
+  state.say = (text, ms = 1800) => {
+    status.textContent = text;
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(() => { status.textContent = ''; }, ms);
+  };
+  return state;
+}
+
+function showFallback(reason) {
+  const fb = document.getElementById('fallback');
+  document.getElementById('fallback-why').textContent = reason || '';
+  fb.hidden = false;
+}
+
+// ---- 10-main.js
+// Wiring: build the specimen, start WebGPU, handle grab / twist / orbit input and run the fixed-step loop.
+const GRAMS_PER_UNIT3 = 27 * 1.3;          // 1 unit = 3 cm, 1.3 g/cm³
+const MICROJ_PER_KE = GRAMS_PER_UNIT3 * 1e-3 * 0.03 * 0.03 * 1e6;
+const REACH = 2.4;
+
+async function main() {
+  const canvas = document.getElementById('gl');
+  let gpu;
+  try { gpu = await initGPU(canvas); } catch (e) { showFallback(e.message); return; }
+  gpu.device.lost.then((info) => showFallback('The GPU device was lost: ' + (info.message || info.reason)));
+
+  const rnd = mulberry32(12);
+  const mesh = buildTetMesh();
+  const locate = makeTetLocator(mesh);
+  const body = createBody(mesh);
+  const surf = buildSurface(mesh, locate);
+  const incl = buildInclusions(locate, rnd);
+  updateSurface(surf, body); updateInclusions(incl, body);
+
+  let R;
+  try { R = createRenderer(gpu, surf, incl, body); } catch (e) { showFallback(e.message); return; }
+  const cam = R.cam;
+
+  const ui = createUI({
+    setFirmness: (v) => { body.firmness = v; },
+    setDamping: (v) => { body.damping = v; },
+    nudge: () => { nudge(body, rnd); ui.say('Nudged.'); },
+    turnOver: () => { endGrab(); turnOver(body, cam.right[0], cam.right[2]); ui.say('Over it goes.'); },
+    reset: () => { endGrab(); resetBody(body); acc = 0; },
+  });
+
+  // Canvas size follows its box, capped for fill rate.
+  const fit = () => {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let w = Math.max(1, Math.round(canvas.clientWidth * dpr)), h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+    const s = Math.min(1, Math.sqrt(3.2e6 / (w * h)));
+    w = Math.max(1, Math.floor(w * s)); h = Math.max(1, Math.floor(h * s));
+    canvas.width = w; canvas.height = h;
+    R.resize(w, h);
+    R.updateCamera();
+  };
+  new ResizeObserver(fit).observe(canvas);
+  fit();
+
+  // ---- Input -------------------------------------------------------------
+  const ro = new Float64Array(3), rd = new Float64Array(3), c = new Float64Array(3);
+  const pointers = new Map();
+  let mode = null, grabId = -1, twistId = -1, twistAngle = 0, lastX = 0, lastY = 0;
+  const plane = { p: new Float64Array(3), n: new Float64Array(3) };
+  let hover = null;
+
+  const local = (e) => { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const ray = (x, y) => R.rayAt(x, y, canvas.clientWidth, canvas.clientHeight, ro, rd);
+
+  function endGrab() {
+    body.grab.active = false; mode = null; grabId = -1; twistId = -1;
+    canvas.classList.remove('grabbing');
+  }
+
+  function dragTo(x, y) {
+    ray(x, y);
+    const den = rd[0] * plane.n[0] + rd[1] * plane.n[1] + rd[2] * plane.n[2];
+    if (Math.abs(den) < 1e-5) return;
+    const t = ((plane.p[0] - ro[0]) * plane.n[0] + (plane.p[1] - ro[1]) * plane.n[1] + (plane.p[2] - ro[2]) * plane.n[2]) / den;
+    if (t <= 0) return;
+    const T = body.grab.target;
+    for (let k = 0; k < 3; k++) T[k] = ro[k] + rd[k] * t;
+    // Bounded reach: the held patch can lead the body, not leave it behind.
+    bodyCentroid(body, c);
+    const dx = T[0] - c[0], dy = T[1] - c[1], dz = T[2] - c[2], l = Math.hypot(dx, dy, dz);
+    if (l > REACH) { const s = REACH / l; T[0] = c[0] + dx * s; T[1] = c[1] + dy * s; T[2] = c[2] + dz * s; }
+    T[1] = Math.min(Math.max(T[1], 0.02), 3.2);
+  }
+
+  const pairAngle = () => {
+    const a = pointers.get(grabId), b = pointers.get(twistId);
+    return Math.atan2(b[1] - a[1], b[0] - a[0]);
+  };
+
+  canvas.addEventListener('pointerdown', (e) => {
+    const p = local(e);
+    pointers.set(e.pointerId, p);
+    canvas.setPointerCapture(e.pointerId);
+    if (mode === 'grab' && twistId < 0) { twistId = e.pointerId; twistAngle = pairAngle(); return; }
+    if (mode) return;
+    ray(p[0], p[1]);
+    const hit = pickSurface(surf, body, ro, rd);
+    if (hit.hit && beginGrab(body, hit.rest, hit.p, cam.fwd)) {
+      mode = 'grab'; grabId = e.pointerId;
+      plane.p.set(hit.p); plane.n.set(cam.fwd);
+      canvas.classList.add('grabbing');
+      const rr = Math.hypot(hit.rest[0], hit.rest[2]);
+      ui.say(rr < SHAPE.hole + 0.2 ? 'Holding the inner edge.' : rr > 1.1 ? 'Holding the outer edge.' : 'Holding the flesh.');
+    } else {
+      mode = 'orbit'; grabId = e.pointerId;
+      canvas.classList.add('orbit');
+      if (hit.hole) ui.say('Through the hole — nothing to hold there.');
+    }
+    lastX = p[0]; lastY = p[1];
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    const p = local(e);
+    if (pointers.has(e.pointerId)) pointers.set(e.pointerId, p);
+    if (mode === 'grab') {
+      if (e.pointerId === grabId) dragTo(p[0], p[1]);
+      if (twistId >= 0 && pointers.has(twistId) && pointers.has(grabId)) {
+        const a = pairAngle();
+        let d = a - twistAngle;
+        if (d > Math.PI) d -= 2 * Math.PI; else if (d < -Math.PI) d += 2 * Math.PI;
+        body.grab.twist += d; twistAngle = a;
+      }
+    } else if (mode === 'orbit' && e.pointerId === grabId) {
+      cam.yaw -= (p[0] - lastX) * 0.006;
+      cam.pitch = Math.min(1.35, Math.max(0.1, cam.pitch + (p[1] - lastY) * 0.005));
+      lastX = p[0]; lastY = p[1];
+    } else if (!mode) {
+      hover = p;
+    }
+  });
+
+  const release = (e) => {
+    pointers.delete(e.pointerId);
+    if (e.pointerId === twistId) { twistId = -1; return; }
+    if (e.pointerId === grabId) {
+      if (mode === 'grab') endGrab();
+      mode = null; grabId = -1;
+      canvas.classList.remove('orbit');
+    }
+  };
+  canvas.addEventListener('pointerup', release);
+  canvas.addEventListener('pointercancel', release);
+  canvas.addEventListener('pointerleave', () => { hover = null; canvas.classList.remove('can-grab'); });
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+    if (mode === 'grab') body.grab.twist += d * 0.004;
+    else cam.dist = Math.min(11, Math.max(3.6, cam.dist * Math.exp(d * 0.001)));
+  }, { passive: false });
+
+  // ---- Loop ----------------------------------------------------------------
+  const stats = { volume: 1, ke: 0 };
+  const massG = body.restVolume * GRAMS_PER_UNIT3;
+  const renderOpts = { tint: ui.tint, time: 0, exposure: 1.0, showMesh: false };
+  let acc = 0, last = performance.now(), lastRead = 0, dirty = true;
+
+  function frame(now) {
+    const dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    if (!ui.paused) {
+      acc += dt * (ui.slow ? 0.25 : 1);
+      let n = 0;
+      while (acc >= STEP && n < 4) { stepBody(body); acc -= STEP; n++; }
+      if (n === 4) acc = 0;
+      if (n) dirty = true;
+    }
+    if (dirty) { updateSurface(surf, body); updateInclusions(incl, body); dirty = false; }
+    // Camera drifts after the specimen so a toss never carries it out of frame (not while holding it).
+    if (mode !== 'grab') {
+      bodyCentroid(body, c);
+      cam.target[0] += (c[0] - cam.target[0]) * 0.03;
+      cam.target[2] += (c[2] - cam.target[2]) * 0.03;
+    }
+    if (hover && !mode) {
+      ray(hover[0], hover[1]);
+      canvas.classList.toggle('can-grab', pickSurface(surf, body, ro, rd).hit);
+      hover = null;
+    }
+    renderOpts.tint = ui.tint; renderOpts.time = now / 1000; renderOpts.showMesh = ui.showMesh;
+    R.render(renderOpts);
+    if (now - lastRead > 200) {
+      bodyStats(body, stats);
+      ui.readouts(massG, stats.volume, stats.ke * MICROJ_PER_KE);
+      lastRead = now;
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+main();
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pineapple / Jelly. — Material Studies No. 012</title>
+<style>/*@CSS*/</style>
+</head>
+<body>
+<div class="app">
+  <main class="stage">
+    <canvas id="gl" aria-label="Soft-body pineapple jelly ring. Drag it to stretch, flip and wobble it."></canvas>
+    <header class="masthead">
+      <p class="kicker">Material Studies <span>/</span> No. 012</p>
+      <h1 class="title">Pineapple <span class="slash">/</span><br>Jelly.</h1>
+      <p class="hint">Grab either edge. Pull. Let go.</p>
+    </header>
+    <p class="paused-tag" id="paused-tag" hidden>Paused</p>
+    <div class="fallback" id="fallback" hidden>
+      <div>
+        <p class="kicker">Material Studies <span>/</span> No. 012</p>
+        <h2>This specimen needs WebGPU.</h2>
+        <p>Your browser didn't offer a WebGPU device. Open this page in a recent version of Chrome with hardware acceleration turned on.</p>
+      </div>
+    </div>
+  </main>
+
+  <aside class="panel" aria-label="The Specimen">
+    <h2>The Specimen</h2>
+
+    <section>
+      <h3>Tint</h3>
+      <div class="swatches">
+        <button class="swatch" data-tint="golden" aria-pressed="true" style="--tint:#f0b93e">
+          <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="10.5" fill="none" stroke="var(--tint)" stroke-width="8"/><circle cx="16" cy="16" r="7.2" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1.2"/><circle cx="16" cy="16" r="14.2" fill="none" stroke="#000" stroke-opacity=".12" stroke-width=".8"/></svg>
+          Golden
+        </button>
+        <button class="swatch" data-tint="amber" aria-pressed="false" style="--tint:#d97d17">
+          <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="10.5" fill="none" stroke="var(--tint)" stroke-width="8"/><circle cx="16" cy="16" r="7.2" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1.2"/><circle cx="16" cy="16" r="14.2" fill="none" stroke="#000" stroke-opacity=".12" stroke-width=".8"/></svg>
+          Amber
+        </button>
+        <button class="swatch" data-tint="rose" aria-pressed="false" style="--tint:#e8948a">
+          <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="10.5" fill="none" stroke="var(--tint)" stroke-width="8"/><circle cx="16" cy="16" r="7.2" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1.2"/><circle cx="16" cy="16" r="14.2" fill="none" stroke="#000" stroke-opacity=".12" stroke-width=".8"/></svg>
+          Rosé
+        </button>
+      </div>
+    </section>
+
+    <section class="sliders">
+      <div class="slider">
+        <label for="sl-firmness"><span>Firmness</span><output id="val-firmness">50</output></label>
+        <input type="range" id="sl-firmness" min="0" max="100" value="50">
+      </div>
+      <div class="slider">
+        <label for="sl-damping"><span>Internal damping</span><output id="val-damping">35</output></label>
+        <input type="range" id="sl-damping" min="0" max="100" value="35">
+      </div>
+    </section>
+
+    <section class="actions">
+      <button class="act" id="btn-nudge">Give it a nudge <kbd>N</kbd></button>
+      <button class="act" id="btn-turn">Turn it over <kbd>T</kbd></button>
+      <button class="act" id="btn-reset">Reset <kbd>R</kbd></button>
+      <button class="act" id="btn-pause" aria-pressed="false"><span id="pause-label">Pause</span> <kbd>Space</kbd></button>
+    </section>
+
+    <section class="toggles">
+      <label><input type="checkbox" id="tg-mesh"> Show mesh</label>
+      <label><input type="checkbox" id="tg-slow"> ¼ speed</label>
+    </section>
+
+    <section class="readouts">
+      <h3>Readouts</h3>
+      <dl>
+        <dt>Mass</dt><dd id="ro-mass">—</dd>
+        <dt>Volume</dt><dd id="ro-volume">—</dd>
+        <dt>Kinetic</dt><dd id="ro-kinetic">—</dd>
+      </dl>
+    </section>
+
+    <footer class="keys">Space pause · N nudge · T turn it over · R reset<br>Scroll or a second finger twists what you hold.</footer>
+  </aside>
+</div>
+<script>/*@JS*/</script>
+</body>
+</html>
